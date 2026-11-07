@@ -64,6 +64,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--no-window", action="store_true", help="serveur seul, sans fenêtre ni navigateur (tests)")
     parser.add_argument("--home", help="dossier de Studio Dock (apps.json, apps\\) ; défaut : celui de l'exe")
     parser.add_argument("--version", action="version", version=f"{APP_NAME} {VERSION}")
+    parser.add_argument("--check-window", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     if args.home:
         os.environ["STUDIODOCK_HOME"] = str(Path(args.home).resolve())
@@ -115,9 +116,22 @@ def main(argv: list[str] | None = None) -> None:
         if serveur.started:
             break
         time.sleep(0.1)
-    webview.create_window(APP_NAME, url, width=1240, height=860, min_size=(760, 560))
+    window = webview.create_window(APP_NAME, url, width=1240, height=860, min_size=(760, 560))
+    if args.check_window:
+        # Vérification du workflow : la fenêtre s'ouvre, charge l'interface, puis se ferme
+        window.events.loaded += lambda: threading.Timer(2, window.destroy).start()
     try:
         webview.start()
+    except Exception as e:  # noqa: BLE001 : WebView2 absent ou bloqué
+        print(f"Fenêtre impossible : {e}")
+        if args.check_window:
+            _arreter()
+            sys.exit(3)
+        # Repli : l'interface s'ouvre dans le navigateur ; fermer le message arrête Studio Dock
+        winapi.ouvrir(url)
+        winapi.message(APP_NAME, "La fenêtre de Studio Dock n'a pas pu s'ouvrir : l'interface est affichée dans "
+                                 "votre navigateur.\n\nGardez ce message ouvert pendant l'utilisation ; "
+                                 "fermez-le pour arrêter Studio Dock et les applications lancées.")
     finally:
         _arreter()
         fil.join(timeout=5)

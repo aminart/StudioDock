@@ -102,6 +102,20 @@ def ouvrir(cible: str) -> None:
         subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", cible])
 
 
+def message(titre: str, texte: str) -> None:
+    """Boîte de message Windows (bloquante) ; ailleurs, attente d'Entrée dans le terminal."""
+    if IS_WIN:
+        import ctypes
+
+        ctypes.windll.user32.MessageBoxW(None, texte, titre, 0x40)  # MB_ICONINFORMATION
+        return
+    print(texte)
+    try:
+        input()
+    except EOFError:
+        pass
+
+
 def premier_plan(pids: set[int]) -> bool:
     """Ramène au premier plan une fenêtre de l'un de ces processus (restaurée si elle était réduite)."""
     if not IS_WIN or not pids:

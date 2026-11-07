@@ -79,6 +79,14 @@ jobs:
           echo "::error::L'exe ne répond pas sur /health"
           exit 1
 
+      - name: Vérification de la fenêtre (WebView2)
+        # Indicatif : la machine de GitHub n'a pas d'utilisateur connecté, la fenêtre peut y échouer
+        continue-on-error: true
+        run: |
+          mkdir -p verif-fenetre
+          timeout 120 ./dist/StudioDock.exe --check-window --port 8598 --home "$PWD/verif-fenetre"
+          echo "Fenêtre ouverte et fermée (code $?)"
+
       - uses: actions/upload-artifact@v4
         with:
           name: StudioDock-windows
