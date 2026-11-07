@@ -31,3 +31,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
   (Windows) ; sur Mac, ouverture du dossier.
 - Version Mac : « Studio Dock.app » pour Mac Intel et Mac à puce Apple (macOS 12 et plus), dossier dans
   `~/Library/Application Support/StudioDock` ; applications Mac retrouvées dans Applications.
+
+### Corrigé
+
+- Exe Windows : lecture de la version d'un exe sans numéro dans son nom (la liste des apps renvoyait une erreur dès
+  qu'un tel exe était dans le dossier partagé).
