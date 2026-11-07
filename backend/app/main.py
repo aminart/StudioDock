@@ -31,6 +31,21 @@ choisir_dossier: Callable[[], str | None] | None = None
 _cache_partage: dict[str, tuple[float, Trouvee | None]] = {}
 
 
+@app.exception_handler(Exception)
+async def erreur_inattendue(_requete, exc: Exception):
+    """Erreur imprévue : écrite dans le journal de Studio Dock (logs\\studiodock.log), message court à l'interface."""
+    import traceback
+
+    try:
+        logs_dir().mkdir(parents=True, exist_ok=True)
+        with open(logs_dir() / "studiodock.log", "a", encoding="utf-8") as journal:
+            journal.write(f"\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] {_requete.method} {_requete.url.path}\n")
+            journal.write("".join(traceback.format_exception(exc)))
+    except OSError:
+        pass
+    return JSONResponse(status_code=500, content={"detail": f"Erreur inattendue de Studio Dock : {exc}"})
+
+
 def _disponible(entree: AppEntry, partage: Path | None) -> Trouvee | None:
     """Dernière version sur le partage, relue au plus toutes les 5 secondes (partage réseau parfois lent)."""
     if partage is None:

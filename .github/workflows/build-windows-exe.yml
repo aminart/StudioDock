@@ -102,7 +102,7 @@ jobs:
           echo "Processus : $(chemin_exe)"
           curl -sf http://127.0.0.1:8597/api/settings; echo
           curl -s -w ' [%{http_code}]' http://127.0.0.1:8597/api/apps | cut -c1-1500; echo
-          tail -n 40 "$LOCALAPPDATA/StudioDock/logs/studiodock.log" || true
+          tail -n 40 "$LOCALAPPDATA/StudioDock/logs/studiodock.log" 2>/dev/null || true
           chemin_exe | grep -qi 'sd-poste-1' || { echo "::error::Studio Dock ne tourne pas depuis le dossier choisi"; exit 1; }
           curl -sf http://127.0.0.1:8597/api/apps | grep -q '"needsInstall":false' || { echo "::error::Toujours à installer"; exit 1; }
           curl -sf http://127.0.0.1:8597/api/settings | grep -q 'partage' || { echo "::error::Dossier partagé non retenu"; exit 1; }
