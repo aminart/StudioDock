@@ -7,7 +7,7 @@
       "port": 8010,
       "ai": true,
       "exe": "SpecGenerator",
-      "icon": { "file": "icons/specgen.svg", "style": "symbole" },
+      "icon": { "file": "icons/specgen.svg", "style": "logo" },
       "tagline": "Des specs en un rien de temps.",
       "description": "SpecGen transforme vos documents, vos schémas et le JSON de vos maquettes en documents UX pour les développeurs : un contexte projet (parcours, navigation, macro layout), puis une spécification détaillée par écran ou composant, exportable en Word, HTML ou Markdown.",
       "points": [
@@ -31,7 +31,7 @@
       "port": 8501,
       "ai": true,
       "exe": "AuditErgo",
-      "icon": { "file": "icons/auditergo.svg", "style": "symbole" },
+      "icon": { "file": "icons/auditergo.svg", "style": "logo" },
       "tagline": "Vos audits, sans la partie fastidieuse.",
       "description": "AuditErgo aide à produire des audits ergonomiques heuristiques au même standard : il contrôle la forme du fichier d'audit, propose pour chaque constat le critère, la recommandation et la gravité, complète les cellules vides et corrige les saisies, en français ou en anglais.",
       "points": [
@@ -54,7 +54,7 @@
       "port": 8020,
       "ai": true,
       "exe": "DocAnalyser",
-      "icon": { "file": "icons/docanalyser.svg", "style": "symbole" },
+      "icon": { "file": "icons/docanalyser.svg", "style": "logo" },
       "tagline": "Des documents aux insights.",
       "description": "Entretiens, études, comptes rendus : DocAnalyser lit vos documents et en fait ressortir les grands thèmes et les parcours utilisateurs. Chaque thème et chaque étape renvoient au passage qui les justifie, pour que vous puissiez toujours vérifier d'où vient une conclusion.",
       "points": [

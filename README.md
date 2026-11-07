@@ -125,7 +125,7 @@ version valide reste affichée, avec l'erreur.
       "port": 8020,
       "ai": true,
       "exe": "DocAnalyser",
-      "icon": { "file": "icons/docanalyser.svg", "style": "symbole" },
+      "icon": { "file": "icons/docanalyser.svg", "style": "logo" },
       "tagline": "Des documents aux insights.",
       "description": "Texte de la fiche…",
       "points": ["Point clé 1", "Point clé 2"],
@@ -145,7 +145,7 @@ version valide reste affichée, avec l'erreur.
 | `path` | *(facultatif)* Emplacement imposé, fichier ou dossier, relatif au dossier de Studio Dock. |
 | `install_name` | *(native, facultatif)* Nom dans « Applications installées », si différent de `name`. |
 | `ai` | L'app utilise des modèles d'IA. |
-| `icon` | Fichier relatif au dossier de Studio Dock (sinon icône livrée) ; `style` : `symbole` (posé sur fond Night Navy) ou `logo` (remplit la vignette, avec son propre fond). Carré, SVG ou PNG ≥ 256 px. |
+| `icon` | Fichier relatif au dossier de Studio Dock (sinon icône livrée) ; `style` : `logo` (l'image remplit la vignette avec son propre fond, cas des icônes de la suite) ou `symbole` (pictogramme posé sur un fond Night Navy). Carré, SVG ou PNG ≥ 256 px. |
 | `tagline`, `description`, `points`, `tutorial`, `links` | Carte de l'accueil et fiche de l'app. |
 
 ### Rendre une app web compatible
