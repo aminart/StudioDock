@@ -1,0 +1,101 @@
+name: Build Windows exe
+
+# Fabrique StudioDock.exe sur une machine Windows de GitHub :
+# - à chaque push : l'exe est disponible en artefact « StudioDock-windows » (onglet Actions) ;
+# - à chaque release publiée (tag vX.Y.Z) : l'exe et un zip sont en plus joints à la release
+#   (StudioDock-X.Y.Z.exe, StudioDock-X.Y.Z-windows.zip). Le tag doit correspondre au fichier VERSION.
+
+on:
+  push:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version
+        id: version
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Studio Dock $version"
+          if [ "${{ github.event_name }}" = "release" ]; then
+            tag="${{ github.event.release.tag_name }}"
+            if [ "$tag" != "v$version" ]; then
+              echo "::error::Le tag $tag ne correspond pas au fichier VERSION ($version). Lancer scripts/bump_version.py avant la release."
+              exit 1
+            fi
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Interface
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Exécutable
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt pyinstaller
+          pyinstaller --noconfirm StudioDock.spec
+
+      - name: Vérification
+        run: |
+          mkdir -p verif
+          ./dist/StudioDock.exe --no-window --port 8599 --home "$PWD/verif" &
+          for i in $(seq 90); do
+            if curl -sf http://127.0.0.1:8599/health > health.json; then
+              cat health.json; echo
+              grep -q '"version":"${{ steps.version.outputs.version }}"' health.json || { echo "::error::Version inattendue"; exit 1; }
+              curl -sf http://127.0.0.1:8599/api/apps | grep -q '"id":"specgen"' || { echo "::error::Liste des apps absente"; exit 1; }
+              curl -sf http://127.0.0.1:8599/ | grep -q 'Studio Dock' || { echo "::error::Interface absente"; exit 1; }
+              test -f verif/apps.json || { echo "::error::apps.json non créé"; exit 1; }
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::L'exe ne répond pas sur /health"
+          exit 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StudioDock-windows
+          path: dist/StudioDock.exe
+          if-no-files-found: error
+
+      - name: Joindre l'exe et le zip à la release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          name="StudioDock-${{ steps.version.outputs.version }}.exe"
+          cp dist/StudioDock.exe "dist/$name"
+          # Zip prêt à copier : l'exe, son dossier apps\ vide et l'historique des versions.
+          base="StudioDock-${{ steps.version.outputs.version }}-windows"
+          mkdir -p "dist/zip/$base/apps"
+          cp dist/StudioDock.exe CHANGELOG.md "dist/zip/$base/"
+          printf 'Déposez ici les exe des apps, un dossier par app (ex. apps\\specgen\\SpecGenerator-1.1.0.exe).\r\n' > "dist/zip/$base/apps/LISEZMOI.txt"
+          (cd dist/zip && python -m zipfile -c "../$base.zip" "$base")
+          gh release upload "${{ github.event.release.tag_name }}" "dist/$name" "dist/$base.zip" --clobber

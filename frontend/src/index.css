@@ -1,0 +1,11 @@
+@import 'night-navy/night-navy.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes sd-spin { to { transform: rotate(360deg); } }
+.sd-spin { animation: sd-spin 0.9s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .sd-spin { animation: none; } }
+
+.clamp-1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
