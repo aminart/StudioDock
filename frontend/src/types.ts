@@ -44,6 +44,8 @@ export interface DockState {
   error: string | null;
   dock: { update: string | null; canUpdate: boolean };
   canChooseFolder: boolean;
+  /** Exe Windows lancé hors de son dossier d'installation : l'écran d'installation s'affiche. */
+  needsInstall: boolean;
   apps: DockApp[];
 }
 
@@ -54,4 +56,15 @@ export interface Settings {
   hasCatalogue: boolean;
   home: string;
   canChooseFolder: boolean;
+  install: InstallState;
+}
+
+export interface InstallState {
+  /** Choix du dossier d'installation possible (exe Windows). */
+  available: boolean;
+  /** Studio Dock tourne depuis le dossier choisi. */
+  installed: boolean;
+  folder: string | null;
+  suggested: string;
+  running: string | null;
 }

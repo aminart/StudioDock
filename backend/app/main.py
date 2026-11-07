@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -12,9 +13,10 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app import miseajour, reglages, winapi
+from app import installation, miseajour, reglages, winapi
 from app.catalogue import AppEntry, Catalogue, Source, fichier_icone, partage_accessible
-from app.info import APP_ID, APP_NAME, EMPAQUETE, PLATEFORME, REPO_DIR, VERSION, home_dir, logs_dir, resources_dir
+from app.info import (APP_ID, APP_NAME, EMPAQUETE, PLATEFORME, REPO_DIR, VERSION, dossier_installation_choisi, exe_dir,
+                      home_dir, logs_dir, resources_dir)
 from app.installeur import Installeur, installee
 from app.pilote import ErreurAction, Pilote
 from app.recherche import Trouvee, plus_recente, trouver_dans_partage
@@ -89,7 +91,8 @@ async def lister() -> dict[str, Any]:
     catalogue = source.lire()
     apps = _visibles(catalogue)
     partage = _partage_lisible()
-    if partage is not None:
+    a_installer = installation.a_installer()
+    if partage is not None and not a_installer:
         await asyncio.to_thread(installeur.installer_les_apps_imposees, apps, partage)
     etats = await pilote.etats(apps)
     if source.origine == "shared" and "seen" not in reglages.lire():
@@ -109,6 +112,7 @@ async def lister() -> dict[str, Any]:
         "error": source.erreur,
         "dock": {"update": nouvelle.version if nouvelle else None, "canUpdate": miseajour.remplacement_possible()},
         "canChooseFolder": choisir_dossier is not None,
+        "needsInstall": a_installer,
         "apps": cartes,
     }
 
@@ -122,6 +126,9 @@ async def _apres(entree: AppEntry) -> dict[str, Any]:
 async def installer(app_id: str):
     """Installe ou met à jour l'app depuis le dossier partagé (copie en arrière-plan, progression dans la liste)."""
     entree = _app_ou_404(app_id)
+    if installation.a_installer():
+        return JSONResponse(status_code=409, content={
+            "detail": "Installez d'abord Studio Dock dans votre dossier (Réglages).", "code": "not_installed"})
     try:
         await asyncio.to_thread(installeur.installer, entree, _partage_lisible())
     except FileNotFoundError as e:
@@ -169,7 +176,69 @@ async def lire_reglages():
         "hasCatalogue": bool(partage) and partage_accessible(partage) and (partage / "catalogue.json").is_file(),
         "home": str(home_dir()),
         "canChooseFolder": choisir_dossier is not None,
+        "install": _etat_installation(),
     }
+
+
+def _etat_installation() -> dict[str, Any]:
+    choisi = dossier_installation_choisi()
+    return {
+        "available": installation.disponible(),
+        "installed": installation.est_installe(),
+        "folder": str(choisi) if choisi else None,
+        "suggested": str(installation.dossier_propose()),
+        "running": str(exe_dir()) if exe_dir() else None,
+    }
+
+
+def _partage_detecte() -> Path | None:
+    """Exe lancé depuis le sous-dossier StudioDock du dossier partagé : celui-ci, s'il a un catalogue."""
+    dossier = exe_dir()
+    if dossier is None:
+        return None
+    for candidat in (dossier, dossier.parent):
+        if (candidat / "catalogue.json").is_file():
+            return candidat
+    return None
+
+
+class Installation(BaseModel):
+    folder: str
+
+
+@app.put("/api/settings/install")
+async def installer_studio_dock(corps: Installation):
+    """Installe Studio Dock dans le dossier choisi (ou l'y déplace avec les apps), puis redémarre depuis celui-ci."""
+    if not installation.disponible():
+        raise HTTPException(409, "Le dossier d'installation se choisit dans la version Windows de Studio Dock.")
+    dossier = reglages.developper(corps.folder)
+    if dossier is None:
+        raise HTTPException(400, "Indiquez un dossier.")
+    detecte = _partage_detecte()
+    partage = reglages.dossier_partage() or detecte
+    try:
+        installation.verifier(dossier, partage)
+    except installation.ErreurInstallation as e:
+        raise HTTPException(409, str(e)) from e
+    ancien = dossier_installation_choisi()
+    # Apps déjà installées : dans l'ancien dossier choisi, ou (version 0.1) à côté de l'exe hors du partage
+    source_apps = ancien
+    if source_apps is None and exe_dir() is not None and (exe_dir() / "apps").is_dir() \
+            and not (partage and installation.dedans(exe_dir(), partage)):
+        source_apps = exe_dir()
+    pilote.tout_arreter()
+    try:
+        exe = await asyncio.to_thread(installation.installer, dossier, Path(sys.executable), source_apps)
+    except installation.ErreurInstallation as e:
+        raise HTTPException(409, str(e)) from e
+    valeurs: dict[str, Any] = {"install_folder": str(dossier)}
+    if detecte is not None and not reglages.locaux().get("shared_folder"):
+        valeurs["shared_folder"] = str(detecte)  # premier lancement depuis le partage : il est retenu
+    reglages.modifier(**valeurs)
+    raccourci = await asyncio.to_thread(installation.creer_raccourci, exe)
+    a_nettoyer = ancien if ancien is not None and not installation.meme(ancien, dossier) else None
+    installation.redemarrer(exe, a_nettoyer, pilote.tout_arreter)
+    return {"ok": True, "restarting": True, "folder": str(dossier), "shortcut": raccourci}
 
 
 @app.put("/api/settings")

@@ -5,6 +5,7 @@ Pour publier une version : python scripts/bump_version.py patch|minor|major (voi
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -26,28 +27,54 @@ def resources_dir() -> Path:
     return REPO_DIR
 
 
-def home_dir() -> Path:
-    """Dossier de Studio Dock : apps.json, apps\\<id>\\ et icônes personnalisées.
+def exe_dir() -> Path | None:
+    """Dossier d'où l'exe a été lancé (exe empaqueté), sinon None."""
+    return Path(sys.executable).resolve().parent if EMPAQUETE else None
 
-    Windows : à côté de StudioDock.exe (dossier portable) ; Mac : ~/Library/Application Support/StudioDock ;
-    STUDIODOCK_HOME pour un autre dossier ;
-    en développement, le dossier « local » du dépôt (ignoré par git).
+
+def config_dir() -> Path:
+    """Réglages de ce poste (config.json), indépendants du dossier d'installation.
+
+    Windows : %LOCALAPPDATA%\\StudioDock ; Mac : ~/Library/Application Support/StudioDock ;
+    STUDIODOCK_HOME (tests) ou, en développement, le dossier « local » du dépôt.
     """
     if autre := os.environ.get("STUDIODOCK_HOME", "").strip():
         return Path(autre).expanduser().resolve()
     if EMPAQUETE and sys.platform == "darwin":
-        # Mac : l'app est rangée dans Applications, ses réglages et les programmes des apps vont ici
         return Path.home() / "Library" / "Application Support" / "StudioDock"
-    if EMPAQUETE:
-        return Path(sys.executable).resolve().parent
+    if EMPAQUETE and sys.platform == "win32":
+        base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+        return Path(base) / "StudioDock"
     return REPO_DIR / "local"
+
+
+def dossier_installation_choisi() -> Path | None:
+    """Windows : dossier d'installation choisi par la personne (réglage install_folder), sinon None."""
+    try:
+        donnees = json.loads((config_dir() / "config.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    brut = str(donnees.get("install_folder") or "").strip() if isinstance(donnees, dict) else ""
+    return Path(os.path.expanduser(os.path.expandvars(brut))) if brut else None
+
+
+def home_dir() -> Path:
+    """Dossier d'installation : StudioDock.exe, apps\\<id>\\ (programmes des apps), copies du catalogue.
+
+    Windows : le dossier choisi par la personne ; tant qu'il n'est pas choisi, le dossier des réglages
+    (jamais celui de l'exe, qui peut être le dossier partagé) ;
+    Mac : ~/Library/Application Support/StudioDock ; STUDIODOCK_HOME pour un autre dossier ;
+    en développement, le dossier « local » du dépôt (ignoré par git).
+    """
+    if os.environ.get("STUDIODOCK_HOME", "").strip() or not EMPAQUETE or sys.platform == "darwin":
+        return config_dir()
+    return dossier_installation_choisi() or config_dir()
 
 
 def logs_dir() -> Path:
     """Journaux de Studio Dock et des apps qu'il lance."""
     if EMPAQUETE and sys.platform == "win32":
-        base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
-        return Path(base) / "StudioDock" / "logs"
+        return config_dir() / "logs"
     if EMPAQUETE and sys.platform == "darwin":
         return Path.home() / "Library" / "Logs" / "StudioDock"
     return home_dir() / "logs"
