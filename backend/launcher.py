@@ -65,11 +65,20 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--home", help="dossier de Studio Dock (apps.json, apps\\) ; défaut : celui de l'exe")
     parser.add_argument("--version", action="version", version=f"{APP_NAME} {VERSION}")
     parser.add_argument("--check-window", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--after-update", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     if args.home:
         os.environ["STUDIODOCK_HOME"] = str(Path(args.home).resolve())
 
-    from app import winapi
+    from app import miseajour, winapi
+
+    if args.after_update:
+        # Redémarrage après mise à jour : l'ancienne version libère le port en quittant
+        for _ in range(100):
+            if not _deja_lance(args.port):
+                break
+            time.sleep(0.2)
+    miseajour.nettoyer_ancienne_version()
 
     if _deja_lance(args.port) and not args.no_window:
         # Un seul Studio Dock à la fois : on rouvre l'interface de celui qui tourne
@@ -117,6 +126,15 @@ def main(argv: list[str] | None = None) -> None:
             break
         time.sleep(0.1)
     window = webview.create_window(APP_NAME, url, width=1240, height=860, min_size=(760, 560))
+
+    def _choisir_dossier() -> str | None:
+        dossier = getattr(getattr(webview, "FileDialog", None), "FOLDER", None) or webview.FOLDER_DIALOG
+        choix = window.create_file_dialog(dossier)
+        return str(choix[0]) if choix else None
+
+    import app.main as module_api
+
+    module_api.choisir_dossier = _choisir_dossier
     if args.check_window:
         # Vérification du workflow : la fenêtre s'ouvre, charge l'interface, puis se ferme
         window.events.loaded += lambda: threading.Timer(2, window.destroy).start()

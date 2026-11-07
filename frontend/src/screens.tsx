@@ -1,12 +1,64 @@
 import React from 'react';
-import type { DockApp, DockState } from './types';
-import { Actions, AppActions, AppIcon, AppNotice, IconBack, IconChevron, IconFolder, StatusLine, where } from './ui';
+import { api } from './api';
+import type { DockApp, DockState, Settings } from './types';
+import {
+  Actions, AppActions, AppIcon, AppNotice, IconAlert, IconBack, IconChevron, IconDownload, IconFolder, IconSpinner,
+  PlatformContext, ProgressBar, StatusLine, TeamContext, UpdateBanner, where,
+} from './ui';
+
+/** Mes applications : installées sur ce poste, ou imposées à l'équipe (installation en cours ou en attente). */
+export const isMine = (app: DockApp, team: boolean) => !team || app.installed || app.mode === 'auto';
+
+/* ---------- Menu « ⋯ » d'une carte ---------- */
+
+const CardMenu: React.FC<{ app: DockApp; actions: Actions }> = ({ app, actions }) => {
+  const team = React.useContext(TeamContext);
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+  }, [open]);
+  if (!team || !app.installed) return null;
+  const item = 'flex min-h-10 w-full items-center gap-2.5 rounded-sm border-0 bg-transparent px-3 text-left text-sm text-ink-body hover:bg-surface-3';
+  return (
+    <div ref={ref} className="absolute right-3 top-3">
+      <button type="button" onClick={() => setOpen(!open)} aria-label={`Options de ${app.name}`} aria-haspopup="menu" aria-expanded={open}
+        className="flex h-9 w-9 items-center justify-center rounded border-0 bg-transparent text-ink-subtle hover:bg-surface-3">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 top-10 z-10 flex min-w-[240px] flex-col rounded-md border border-line-strong bg-surface p-1.5 shadow-lg">
+          <a role="menuitem" href={`#/app/${app.id}`} className={`${item} no-underline`}>Fiche et prise en main</a>
+          {app.mode === 'auto' ? (
+            <span role="menuitem" aria-disabled="true" className="px-3 py-2 text-[13px] text-ink-subtle">
+              Installée pour toute l'équipe : ne peut pas être retirée
+            </span>
+          ) : app.kind === 'web' ? (
+            <button type="button" role="menuitem" className={item} onClick={() => { setOpen(false); actions.uninstall(app); }}>
+              Retirer de ce poste
+            </button>
+          ) : (
+            <span role="menuitem" aria-disabled="true" className="px-3 py-2 text-[13px] text-ink-subtle">
+              Se désinstalle depuis les réglages du système
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 /* ---------- Accueil ---------- */
 
 const AppCard: React.FC<{ app: DockApp; actions: Actions; pending: boolean }> = ({ app, actions, pending }) => (
-  <article className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6 hover:border-line-strong">
-    <div className="flex items-start gap-3.5">
+  <article className="relative flex flex-col gap-4 rounded-lg border border-line bg-surface p-6 hover:border-line-strong">
+    <CardMenu app={app} actions={actions} />
+    <div className="flex items-start gap-3.5 pr-8">
       <AppIcon app={app} size={48} />
       <div className="flex min-w-0 flex-grow flex-col gap-0.5">
         <div className="flex min-w-0 items-center gap-2">
@@ -23,31 +75,96 @@ const AppCard: React.FC<{ app: DockApp; actions: Actions; pending: boolean }> = 
         </a>
       </div>
     </div>
+    <UpdateBanner app={app} actions={actions} />
     <AppNotice app={app} actions={actions} />
     <div className="mt-auto flex flex-col gap-3">
       <StatusLine app={app} />
+      <ProgressBar app={app} />
       <AppActions app={app} actions={actions} pending={pending} />
     </div>
   </article>
 );
 
-export const Home: React.FC<{ state: DockState; actions: Actions; pending: Set<string> }> = ({ state, actions, pending }) => (
-  <div className="flex flex-col gap-6">
-    <div className="flex flex-col gap-1.5">
-      <h1 className="m-0 text-[30px] font-bold leading-tight text-ink">Mes applications</h1>
-      <p className="m-0 max-w-[680px] text-ink-muted">Vos outils, lancés depuis un seul endroit.</p>
+/** Carte compacte d'une app proposée par l'équipe, pas encore installée sur ce poste. */
+const AvailableCard: React.FC<{ app: DockApp; actions: Actions }> = ({ app, actions }) => (
+  <article className="flex flex-col gap-3 rounded-lg border border-dashed border-line-strong bg-surface px-[18px] py-4">
+    <div className="flex items-center gap-3.5">
+      <AppIcon app={app} size={40} />
+      <div className="flex min-w-0 flex-grow flex-col">
+        <div className="flex min-w-0 items-center gap-2">
+          <h3 className="clamp-1 m-0 min-w-0 text-base font-bold text-ink">
+            <a href={`#/app/${app.id}`} className="text-inherit no-underline hover:underline">{app.name}</a>
+          </h3>
+          {app.isNew && (
+            <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-primary-on">Nouveau</span>
+          )}
+        </div>
+        {app.tagline && <p className="clamp-1 m-0 text-sm text-ink-muted">{app.tagline}</p>}
+      </div>
     </div>
-    {state.apps.length === 0 ? (
-      <div className="rounded-lg border border-dashed border-line-dashed bg-surface p-8 text-center text-ink-muted">
-        Aucune application dans <span className="font-mono">{state.catalogue}</span>.
+    <AppNotice app={app} actions={actions} />
+    {app.progress !== null ? (
+      <div className="flex flex-col gap-1.5">
+        <div className="flex justify-between text-[13px] text-ink-subtle"><span>Installation…</span><span className="font-mono">{app.progress} %</span></div>
+        <ProgressBar app={app} />
       </div>
     ) : (
-      <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
-        {state.apps.map((app) => <AppCard key={app.id} app={app} actions={actions} pending={pending.has(app.id)} />)}
+      <div className="flex items-center gap-3">
+        <span className="clamp-1 flex-grow font-mono text-[13px] text-ink-subtle">
+          {app.availableVersion ? `v${app.availableVersion} · ` : ''}{app.kind === 'web' ? 'app web' : 'app de bureau'}
+        </span>
+        {app.availableVersion ? (
+          <button type="button" onClick={() => actions.install(app)}
+            className="flex h-10 items-center gap-2 rounded border border-line-strong bg-surface px-4 font-medium text-accent hover:bg-surface-3">
+            <IconDownload /> Installer
+          </button>
+        ) : (
+          <span className="text-[13px] text-ink-subtle">Indisponible</span>
+        )}
       </div>
     )}
-  </div>
+  </article>
 );
+
+const grid = { gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' };
+
+export const Home: React.FC<{ state: DockState; actions: Actions; pending: Set<string> }> = ({ state, actions, pending }) => {
+  const team = state.source !== 'local';
+  const mine = state.apps.filter((a) => isMine(a, team));
+  const available = state.apps.filter((a) => !isMine(a, team));
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1.5">
+        <h1 className="m-0 text-[30px] font-bold leading-tight text-ink">Mes applications</h1>
+        <p className="m-0 max-w-[680px] text-ink-muted">Vos outils, lancés depuis un seul endroit.</p>
+      </div>
+      {mine.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-line-dashed bg-surface p-8 text-center text-ink-muted">
+          {team ? 'Aucune application installée pour le moment : choisissez-en dans « Disponibles pour vous ».'
+            : <>Aucune application dans <span className="font-mono">{state.catalogue}</span>.</>}
+        </div>
+      ) : (
+        <div className="grid gap-5" style={grid}>
+          {mine.map((app) => <AppCard key={app.id} app={app} actions={actions} pending={pending.has(app.id)} />)}
+        </div>
+      )}
+      {available.length > 0 && (
+        <section aria-labelledby="dispo" className="mt-4 flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h2 id="dispo" className="m-0 flex items-center gap-2.5 text-[21px] font-bold leading-snug text-ink">
+              Disponibles pour vous
+              <span className="rounded-full bg-accent-soft px-2.5 text-[13px] font-medium text-accent-ink">{available.length}</span>
+            </h2>
+            <p className="m-0 text-sm text-ink-muted">Proposées par votre équipe. Installez celles qui vous servent ; vous pourrez les retirer à tout moment.</p>
+          </div>
+          <div className="grid gap-4" style={grid}>
+            {available.map((app) => <AvailableCard key={app.id} app={app} actions={actions} />)}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+};
 
 /* ---------- Fiche d'une app ---------- */
 
@@ -58,90 +175,221 @@ const Info: React.FC<{ label: string; children: React.ReactNode; mono?: boolean 
   </>
 );
 
-export const AppPage: React.FC<{ app: DockApp; actions: Actions; pending: boolean }> = ({ app, actions, pending }) => (
-  <div className="flex flex-col gap-7">
-    <a href="#/" className="flex min-h-8 items-center gap-1.5 self-start text-sm text-ink-muted no-underline hover:text-ink">
-      <IconBack /> Mes applications
-    </a>
+export const AppPage: React.FC<{ app: DockApp; actions: Actions; pending: boolean }> = ({ app, actions, pending }) => {
+  const team = React.useContext(TeamContext);
+  React.useEffect(() => {
+    if (app.isNew) api.seen([app.id]).catch(() => undefined);
+  }, [app.id, app.isNew]);
+  return (
+    <div className="flex flex-col gap-7">
+      <a href="#/" className="flex min-h-8 items-center gap-1.5 self-start text-sm text-ink-muted no-underline hover:text-ink">
+        <IconBack /> Mes applications
+      </a>
 
-    <section className="flex flex-wrap items-center gap-x-7 gap-y-5 rounded-lg border border-line bg-surface p-7">
-      <AppIcon app={app} size={72} />
-      <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <h1 className="m-0 text-[30px] font-bold leading-tight text-ink">{app.name}</h1>
-          {app.version && (
-            <span className="rounded-full border border-line bg-surface-2 px-2 font-mono text-xs text-ink-subtle">v{app.version}</span>
+      <section className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-7">
+        <div className="flex flex-wrap items-center gap-x-7 gap-y-5">
+          <AppIcon app={app} size={72} />
+          <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="m-0 text-[30px] font-bold leading-tight text-ink">{app.name}</h1>
+              {app.version && (
+                <span className="rounded-full border border-line bg-surface-2 px-2 font-mono text-xs text-ink-subtle">v{app.version}</span>
+              )}
+            </div>
+            {app.tagline && <p className="m-0 text-[17px] text-ink-muted">{app.tagline}</p>}
+            <div className="mt-1"><StatusLine app={app} /></div>
+          </div>
+          <AppActions app={app} actions={actions} pending={pending} wide />
+        </div>
+        <ProgressBar app={app} />
+        <UpdateBanner app={app} actions={actions} />
+        <AppNotice app={app} actions={actions} />
+      </section>
+
+      <div className="flex flex-wrap items-start gap-7">
+        <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-7">
+          {(app.description || app.points.length > 0) && (
+            <section className="flex flex-col gap-2.5">
+              <h2 className="m-0 text-[21px] font-bold text-ink">À quoi sert {app.name}</h2>
+              {app.description && <p className="m-0 max-w-[680px] leading-relaxed">{app.description}</p>}
+              {app.points.length > 0 && (
+                <ul className="m-0 mt-1 flex list-disc flex-col gap-1.5 pl-5">
+                  {app.points.map((p) => <li key={p}>{p}</li>)}
+                </ul>
+              )}
+            </section>
+          )}
+
+          {app.tutorial.length > 0 && (
+            <section className="flex flex-col gap-3.5">
+              <h2 className="m-0 text-[21px] font-bold text-ink">Prise en main</h2>
+              <ol className="m-0 flex list-none flex-col gap-3 p-0">
+                {app.tutorial.map((step, i) => (
+                  <li key={step.title} className="flex gap-4 rounded-md border border-line bg-surface px-[18px] py-4">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft font-bold text-accent-ink" aria-hidden="true">{i + 1}</span>
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <span className="font-bold text-ink">{step.title}</span>
+                      {step.text && <span className="text-sm text-ink-muted">{step.text}</span>}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
           )}
         </div>
-        {app.tagline && <p className="m-0 text-[17px] text-ink-muted">{app.tagline}</p>}
-        <div className="mt-1"><StatusLine app={app} /></div>
-      </div>
-      <AppActions app={app} actions={actions} pending={pending} wide />
-      {(app.state === 'error' || app.state === 'missing') && (
-        <div className="w-full"><AppNotice app={app} actions={actions} /></div>
-      )}
-    </section>
 
-    <div className="flex flex-wrap items-start gap-7">
-      <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-7">
-        {(app.description || app.points.length > 0) && (
-          <section className="flex flex-col gap-2.5">
-            <h2 className="m-0 text-[21px] font-bold text-ink">À quoi sert {app.name}</h2>
-            {app.description && <p className="m-0 max-w-[680px] leading-relaxed">{app.description}</p>}
-            {app.points.length > 0 && (
-              <ul className="m-0 mt-1 flex list-disc flex-col gap-1.5 pl-5">
-                {app.points.map((p) => <li key={p}>{p}</li>)}
-              </ul>
-            )}
+        <aside className="flex min-w-0 flex-[1_1_280px] flex-col gap-4">
+          <section className="rounded-md border border-line bg-surface p-[18px]">
+            <h2 className="m-0 mb-3 text-base font-bold text-ink">Informations</h2>
+            <dl className="m-0 grid gap-x-4 gap-y-2 text-sm" style={{ gridTemplateColumns: 'auto minmax(0, 1fr)' }}>
+              <Info label="Version" mono>{app.version ?? '—'}</Info>
+              {team && <Info label="Sur le partage" mono>{app.availableVersion ?? '—'}</Info>}
+              <Info label="Type">{app.kind === 'web' ? 'App web locale' : 'App de bureau'}</Info>
+              {app.kind === 'web' && <Info label="Adresse" mono>{where(app)}</Info>}
+              <Info label="IA">{app.ai ? 'Utilise vos connexions aux modèles' : 'Aucune'}</Info>
+              {team && <Info label="Installation">{app.mode === 'auto' ? 'Pour toute l\'équipe' : 'Choisie par vous'}</Info>}
+              <Info label="Emplacement" mono>{app.location ?? 'non installée'}</Info>
+            </dl>
+            <div className="mt-3.5 flex flex-wrap gap-2">
+              {app.folder && app.location && (
+                <button type="button" onClick={() => actions.folder(app)}
+                  className="flex h-10 items-center gap-2 rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body hover:bg-surface-3">
+                  <IconFolder /> Ouvrir le dossier
+                </button>
+              )}
+              {team && app.installed && app.mode !== 'auto' && app.kind === 'web' && (
+                <button type="button" onClick={() => actions.uninstall(app)}
+                  className="flex h-10 items-center rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body hover:bg-surface-3">
+                  Retirer de ce poste
+                </button>
+              )}
+            </div>
           </section>
-        )}
 
-        {app.tutorial.length > 0 && (
-          <section className="flex flex-col gap-3.5">
-            <h2 className="m-0 text-[21px] font-bold text-ink">Prise en main</h2>
-            <ol className="m-0 flex list-none flex-col gap-3 p-0">
-              {app.tutorial.map((step, i) => (
-                <li key={step.title} className="flex gap-4 rounded-md border border-line bg-surface px-[18px] py-4">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft font-bold text-accent-ink" aria-hidden="true">{i + 1}</span>
-                  <div className="flex min-w-0 flex-col gap-0.5">
-                    <span className="font-bold text-ink">{step.title}</span>
-                    {step.text && <span className="text-sm text-ink-muted">{step.text}</span>}
-                  </div>
-                </li>
+          {app.links.length > 0 && (
+            <section className="flex flex-col gap-2 rounded-md border border-line bg-surface p-[18px] text-sm">
+              <h2 className="m-0 mb-0.5 text-base font-bold text-ink">Liens</h2>
+              {app.links.map((l) => (
+                <button key={l.url} type="button" onClick={() => actions.link(l.url)}
+                  className="self-start border-0 bg-transparent p-0 text-left text-accent underline">{l.label}</button>
               ))}
-            </ol>
-          </section>
-        )}
+            </section>
+          )}
+        </aside>
+      </div>
+    </div>
+  );
+};
+
+/* ---------- Réglages ---------- */
+
+export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'home' | 'shared') => void }> = ({ onSaved, openFolder }) => {
+  const platform = React.useContext(PlatformContext);
+  const [settings, setSettings] = React.useState<Settings | null>(null);
+  const [value, setValue] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const [message, setMessage] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    api.settings().then((s) => { setSettings(s); setValue(s.shared_folder); }).catch(() => setMessage('Réglages illisibles.'));
+  }, []);
+
+  const save = async (folder: string) => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const s = await api.saveSettings(folder);
+      setSettings(s);
+      setValue(s.shared_folder);
+      setMessage(!folder ? 'Dossier partagé retiré : Studio Dock utilise la liste locale.'
+        : s.hasCatalogue ? 'Dossier partagé enregistré.' : 'Enregistré, mais le catalogue de l\'équipe est introuvable à cet endroit.');
+      onSaved();
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : 'Enregistrement impossible.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const choose = async () => {
+    const { path } = await api.chooseFolder();
+    if (path) {
+      setValue(path);
+      await save(path);
+    }
+  };
+
+  const status = settings && settings.shared_folder
+    ? settings.hasCatalogue ? { ok: true, text: 'Accessible, catalogue de l\'équipe trouvé.' }
+      : settings.reachable ? { ok: false, text: 'Dossier accessible, mais sans catalogue.json.' }
+        : { ok: false, text: 'Dossier inaccessible depuis ce poste (réseau, VPN, droits).' }
+    : null;
+
+  return (
+    <div className="flex flex-col gap-7">
+      <a href="#/" className="flex min-h-8 items-center gap-1.5 self-start text-sm text-ink-muted no-underline hover:text-ink">
+        <IconBack /> Mes applications
+      </a>
+      <div className="flex flex-col gap-1.5">
+        <h1 className="m-0 text-[30px] font-bold leading-tight text-ink">Réglages</h1>
+        <p className="m-0 max-w-[680px] text-ink-muted">Où Studio Dock trouve les applications de l'équipe, et où il les installe sur ce poste.</p>
       </div>
 
-      <aside className="flex min-w-0 flex-[1_1_280px] flex-col gap-4">
-        <section className="rounded-md border border-line bg-surface p-[18px]">
-          <h2 className="m-0 mb-3 text-base font-bold text-ink">Informations</h2>
-          <dl className="m-0 grid gap-x-4 gap-y-2 text-sm" style={{ gridTemplateColumns: 'auto minmax(0, 1fr)' }}>
-            <Info label="Version" mono>{app.version ?? '—'}</Info>
-            <Info label="Type">{app.kind === 'web' ? 'App web locale' : 'App de bureau'}</Info>
-            {app.kind === 'web' && <Info label="Adresse" mono>{where(app)}</Info>}
-            <Info label="IA">{app.ai ? 'Utilise vos connexions aux modèles' : 'Aucune'}</Info>
-            <Info label="Emplacement" mono>{app.location ?? 'introuvable'}</Info>
-          </dl>
-          {app.folder && (
-            <button type="button" onClick={() => actions.folder(app)}
-              className="mt-3.5 flex h-10 items-center gap-2 rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body hover:bg-surface-3">
-              <IconFolder /> Ouvrir le dossier
+      <section className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
+        <div className="flex flex-col gap-1">
+          <h2 className="m-0 text-[19px] font-bold text-ink">Dossier partagé de l'équipe</h2>
+          <p className="m-0 text-sm text-ink-muted">
+            Contient <span className="font-mono">catalogue.json</span> et un sous-dossier par application, où sont déposées les nouvelles versions.
+            Les apps n'y sont jamais lancées : elles sont copiées sur ce poste.
+          </p>
+        </div>
+        <form className="flex flex-wrap gap-2.5" onSubmit={(e) => { e.preventDefault(); save(value.trim()); }}>
+          <label htmlFor="partage" className="sr-only">Chemin du dossier partagé</label>
+          <input id="partage" value={value} onChange={(e) => setValue(e.target.value)} placeholder={platform === 'mac' ? '/Volumes/Equipe UX' : '\\\\serveur\\Equipe UX  ou  Z:\\Equipe UX'}
+            className="h-11 min-w-0 flex-[1_1_320px] rounded border border-line-strong bg-surface-2 px-3.5 font-mono text-sm text-ink focus:outline focus:outline-2 focus:outline-focus" />
+          {settings?.canChooseFolder && (
+            <button type="button" onClick={choose} disabled={busy}
+              className="flex h-11 items-center gap-2 rounded border border-line-strong bg-surface px-4 font-medium text-ink-body hover:bg-surface-3">
+              <IconFolder /> Choisir…
             </button>
           )}
-        </section>
-
-        {app.links.length > 0 && (
-          <section className="flex flex-col gap-2 rounded-md border border-line bg-surface p-[18px] text-sm">
-            <h2 className="m-0 mb-0.5 text-base font-bold text-ink">Liens</h2>
-            {app.links.map((l) => (
-              <button key={l.url} type="button" onClick={() => actions.link(l.url)}
-                className="self-start border-0 bg-transparent p-0 text-left text-accent underline">{l.label}</button>
-            ))}
-          </section>
+          <button type="submit" disabled={busy || value.trim() === (settings?.shared_folder ?? '')}
+            className="flex h-11 items-center gap-2 rounded border-0 bg-primary px-5 font-medium text-primary-on hover:bg-primary-hover disabled:cursor-default disabled:bg-primary-disabled disabled:text-primary-on-disabled">
+            {busy && <IconSpinner />} Enregistrer
+          </button>
+        </form>
+        {status && (
+          <p className={`m-0 flex items-center gap-2 text-sm ${status.ok ? 'text-success-text' : 'text-warning-text'}`}>
+            {status.ok ? <span className="h-2 w-2 rounded-full bg-success" aria-hidden="true" /> : <IconAlert />} {status.text}
+            {settings?.reachable && (
+              <button type="button" onClick={() => openFolder('shared')} className="ml-1 border-0 bg-transparent p-0 text-accent underline">Ouvrir</button>
+            )}
+          </p>
         )}
-      </aside>
+        {message && <p role="status" className="m-0 text-sm text-ink-muted">{message}</p>}
+        {settings?.shared_folder && (
+          <button type="button" onClick={() => save('')} className="self-start border-0 bg-transparent p-0 text-sm text-ink-subtle underline">
+            Ne plus utiliser de dossier partagé
+          </button>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-6">
+        <div className="flex flex-col gap-1">
+          <h2 className="m-0 text-[19px] font-bold text-ink">Installation sur ce poste</h2>
+          <p className="m-0 text-sm text-ink-muted">
+            Le dossier de Studio Dock : les applications y sont copiées (un dossier par app) et lancées depuis cet endroit.
+            Pour en changer, placez Studio Dock dans le dossier autorisé par votre entreprise.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="min-w-0 flex-grow break-all rounded bg-surface-2 px-3.5 py-2.5 font-mono text-sm">{settings?.home ?? '…'}</span>
+          <button type="button" onClick={() => openFolder('home')}
+            className="flex h-10 items-center gap-2 rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body hover:bg-surface-3">
+            <IconFolder /> Ouvrir
+          </button>
+        </div>
+      </section>
     </div>
-  </div>
-);
+  );
+};

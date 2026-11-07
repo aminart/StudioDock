@@ -264,6 +264,20 @@ class Pilote:
         else:
             winapi.premier_plan(pids)
 
+    def est_lancee(self, app: AppEntry) -> bool:
+        """App web lancée (par Studio Dock ou à côté) ; app native en cours d'exécution."""
+        if app.kind == "native":
+            trouvee = trouver_native(app)
+            return bool(_processus_par_exe().get(_nom_processus(app, trouvee)))
+        lancement = self._lancements.get(app.id)
+        if lancement and lancement.process.poll() is None:
+            return True
+        try:
+            sante = httpx.get(f"http://{HOTE}:{app.port}/health", timeout=0.6).json()
+            return sante.get("app") in (None, app.id) and "status" in sante
+        except (httpx.HTTPError, ValueError):
+            return False
+
     def effacer_erreur(self, app: AppEntry) -> None:
         self._erreurs.pop(app.id, None)
 

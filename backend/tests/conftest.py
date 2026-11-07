@@ -44,6 +44,10 @@ def client(maison, monkeypatch):
     pilote = Pilote()
     monkeypatch.setattr(main, "source", Source())
     monkeypatch.setattr(main, "pilote", pilote)
+    from app.installeur import Installeur
+
+    monkeypatch.setattr(main, "installeur", Installeur(pilote))
+    main._cache_partage.clear()
     # Pas de navigateur ni d'Explorateur pendant les tests
     ouverts = []
     monkeypatch.setattr(main.winapi, "ouvrir", ouverts.append)

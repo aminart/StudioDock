@@ -4,7 +4,55 @@ Fenêtre Windows et Mac qui lance les applications UX installées sur le poste (
 affiche leur état et les arrête quand on la ferme. Aucune app n'est écrite dans son code : la liste, les textes,
 les icônes et les tutoriels viennent du fichier `apps.json`.
 
-## Installation
+## Pour une équipe : dossier partagé
+
+Studio Dock lit la liste des apps dans un **dossier partagé** que vous gérez, y trouve leurs dernières versions et
+les **copie sur le poste** de chacun : les apps ne sont jamais lancées depuis le partage.
+
+```
+<dossier partagé>\                      vous seule y écrivez
+  catalogue.json                        apps proposées, textes, icônes, sous-dossier et mode de chacune
+  icons\                                icônes référencées par le catalogue
+  StudioDock\    StudioDock-0.2.0.exe   nouvelles versions de Studio Dock
+  SpecGen\       SpecGenerator-1.1.0.exe  SpecGenerator-1.2.0.exe
+  Audit\         AuditErgo-1.1.0.exe
+  DocAnalyser\   DocAnalyser-2.0.0.exe
+  Mapline\       Mapline_1.3.1_x64-setup.exe
+```
+
+- **Publier une version** : déposer le nouvel exe dans le sous-dossier de l'app (les anciennes versions peuvent rester ;
+  la plus récente est proposée). Chez chacun, la carte affiche « Version X disponible » ; les apps imposées à l'équipe
+  (`"mode": "auto"`) sont mises à jour d'office quand elles ne sont pas lancées.
+- **Ajouter une app** : sa fiche dans `catalogue.json` (avec `"source"` : son sous-dossier) et son exe dans ce
+  sous-dossier ; elle apparaît chez chacun dans « Disponibles pour vous », avec le badge « Nouveau ».
+- **Retirer une app de la liste** : `"mode": "masque"`.
+- **Mettre à jour Studio Dock** : déposer `StudioDock-X.Y.Z.exe` dans `StudioDock\` ; chacun voit « Studio Dock X.Y.Z
+  est disponible » et le remplace d'un clic (redémarrage automatique). Sur Mac, le bandeau ouvre le dossier.
+- **Partage inaccessible** (réseau, VPN) : les apps installées restent utilisables, les cartes s'affichent depuis une copie
+  locale du catalogue ; installations et mises à jour reprennent quand le partage revient.
+
+`catalogue.json` a le même format que `apps.json` (voir plus bas), avec trois champs en plus :
+
+| Champ | Rôle |
+|---|---|
+| `source` | Sous-dossier du partage où sont déposées les versions de l'app (défaut : son `id`). |
+| `mode` | `auto` : installée d'office chez tout le monde, ne peut pas être retirée ; `optionnel` (défaut) : chacun l'installe s'il veut ; `masque` : retirée de la liste. |
+| `studiodock.source` *(à la racine)* | Sous-dossier des versions de Studio Dock (défaut : `StudioDock`). |
+
+**Réglage du dossier partagé** : écran Réglages de Studio Dock (bouton « Choisir… » ou chemin saisi). Pour éviter ce
+réglage à chacun, posez à côté de `StudioDock.exe` un fichier `studiodock.config.json` :
+
+```json
+{ "shared_folder": "\\\\serveur\\Equipe UX" }
+```
+
+Le chemin accepte les variables (`%USERNAME%`, `$HOME`). Sans dossier partagé, Studio Dock utilise la liste locale
+`apps.json` (ci-dessous).
+
+**Installation sur le poste** : chacun copie `StudioDock.exe` (avec `studiodock.config.json`) une fois dans le dossier
+local autorisé par l'entreprise et le lance. Les apps sont installées dans `apps\<id>\` à côté de lui.
+
+## Installation sans dossier partagé
 
 1. Télécharger `StudioDock-X.Y.Z-windows.zip` depuis la dernière release (ou `StudioDock-X.Y.Z.exe` seul).
 2. Le décompresser dans un dossier, par exemple `Documents\Studio Dock`.

@@ -1,8 +1,8 @@
-import type { DockApp, DockState } from './types';
+import type { DockApp, DockState, Settings } from './types';
 
 export class ActionError extends Error {}
 
-async function call<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
+async function call<T>(method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown): Promise<T> {
   const response = await fetch(path, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
@@ -27,6 +27,13 @@ export const api = {
   open: (id: string) => call<{ ok: boolean }>('POST', `/api/apps/${id}/open`),
   dismiss: (id: string) => call<DockApp>('POST', `/api/apps/${id}/dismiss`),
   folder: (id: string) => call<{ ok: boolean }>('POST', `/api/apps/${id}/folder`),
-  openFolder: (name: 'home' | 'logs') => call<{ ok: boolean }>('POST', `/api/open-folder/${name}`),
+  openFolder: (name: 'home' | 'logs' | 'shared') => call<{ ok: boolean }>('POST', `/api/open-folder/${name}`),
+  install: (id: string) => call<DockApp>('POST', `/api/apps/${id}/install`),
+  uninstall: (id: string) => call<DockApp>('POST', `/api/apps/${id}/uninstall`),
+  seen: (ids: string[]) => call<{ ok: boolean }>('POST', '/api/seen', { ids }),
+  settings: () => call<Settings>('GET', '/api/settings'),
+  saveSettings: (shared_folder: string) => call<Settings>('PUT', '/api/settings', { shared_folder }),
+  chooseFolder: () => call<{ path: string | null }>('POST', '/api/settings/choose-folder'),
+  updateDock: () => call<{ ok: boolean; restarting: boolean }>('POST', '/api/dock/update'),
   openLink: (url: string) => call<{ ok: boolean }>('POST', '/api/open-link', { url }),
 };

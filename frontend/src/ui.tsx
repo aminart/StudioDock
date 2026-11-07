@@ -86,6 +86,11 @@ export const Header: React.FC = () => (
         <DockLogo />
         <span className="text-[17px] font-bold leading-tight text-ink">Studio Dock</span>
       </a>
+      <a href="#/reglages" aria-label="Réglages de Studio Dock" title="Réglages"
+        className="flex h-10 items-center gap-2 rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body no-underline hover:bg-surface-3">
+        {stroke(16, undefined, <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" /></>)}
+        <span className="hidden sm:inline">Réglages</span>
+      </a>
       <ThemeToggle />
     </div>
   </header>
@@ -95,6 +100,8 @@ export const Header: React.FC = () => (
 
 /** Système du poste (renvoyé par l'API) : adapte les noms de fichiers dans les messages. */
 export const PlatformContext = React.createContext<'windows' | 'mac' | 'linux'>('windows');
+/** Catalogue d'équipe (dossier partagé) ou liste locale : change les messages et les actions possibles. */
+export const TeamContext = React.createContext<boolean>(false);
 
 export const AppIcon: React.FC<{ app: DockApp; size: number }> = ({ app, size }) => {
   const logo = app.icon.style === 'logo';
@@ -115,7 +122,7 @@ const statusText = (app: DockApp): string => {
     case 'on': return 'En cours';
     case 'starting': return 'Démarrage…';
     case 'off': return 'Arrêtée';
-    case 'missing': return app.kind === 'native' ? 'Non installée' : 'Introuvable';
+    case 'missing': return app.progress !== null ? `Installation… ${app.progress} %` : app.kind === 'native' || app.availableVersion ? 'Non installée' : 'Introuvable';
     case 'error': return app.error?.code === 'port_busy' ? 'Impossible de lancer' : 'Erreur';
   }
 };
@@ -143,15 +150,45 @@ export type Actions = {
   folder: (app: DockApp) => void;
   logs: () => void;
   link: (url: string) => void;
+  install: (app: DockApp) => void;
+  uninstall: (app: DockApp) => void;
 };
 
 const btnPrimary = 'flex h-11 items-center justify-center gap-2 rounded border-0 bg-primary px-5 font-medium text-primary-on hover:bg-primary-hover disabled:cursor-default disabled:opacity-60 disabled:hover:bg-primary';
 const btnInk = 'flex h-11 min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded border-0 bg-ink px-5 font-medium text-surface hover:opacity-90';
 const btnGhost = 'flex h-11 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded border border-line-strong bg-surface px-4 font-medium text-ink-body hover:bg-surface-3';
 
-/** Message sous la carte : app introuvable ou erreur au lancement. */
+export const ProgressBar: React.FC<{ app: DockApp }> = ({ app }) =>
+  app.progress === null ? null : (
+    <div role="progressbar" aria-label={`Installation de ${app.name}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={app.progress}
+      className="h-2 overflow-hidden rounded-full bg-line">
+      <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${app.progress}%` }} />
+    </div>
+  );
+
+/** Bandeau « nouvelle version » : la version déposée sur le partage est plus récente que celle installée. */
+export const UpdateBanner: React.FC<{ app: DockApp; actions: Actions }> = ({ app, actions }) =>
+  !app.update || app.progress !== null ? null : (
+    <div className="flex items-center gap-2.5 rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-[13px] text-warning-text">
+      <IconDownload className="shrink-0" />
+      <span className="flex-grow">Version {app.availableVersion} disponible{app.state === 'on' ? ' (l\'app sera arrêtée)' : ''}</span>
+      <button type="button" onClick={() => actions.install(app)} className="shrink-0 whitespace-nowrap border-0 bg-transparent p-0 font-medium text-warning-text underline">Mettre à jour</button>
+    </div>
+  );
+
+/** Message sous la carte : app introuvable, copie impossible ou erreur au lancement. */
 export const AppNotice: React.FC<{ app: DockApp; actions: Actions }> = ({ app, actions }) => {
   const platform = React.useContext(PlatformContext);
+  const team = React.useContext(TeamContext);
+  if (app.installError) {
+    return (
+      <div role="alert" className="flex items-start gap-2 rounded-md bg-danger-soft px-3 py-2 text-[13px] text-danger-text">
+        <IconAlert className="mt-0.5 shrink-0" />
+        <span className="flex-grow">{app.installError}</span>
+        <button type="button" onClick={() => actions.dismiss(app)} className="border-0 bg-transparent p-0 font-medium text-danger-text underline">Masquer</button>
+      </div>
+    );
+  }
   if (app.state === 'error' && app.error) {
     return (
       <div role="alert" className="flex flex-col gap-2 rounded-md bg-danger-soft px-3 py-2 text-[13px] text-danger-text">
@@ -169,7 +206,15 @@ export const AppNotice: React.FC<{ app: DockApp; actions: Actions }> = ({ app, a
       </div>
     );
   }
-  if (app.state === 'missing' && app.kind === 'web') {
+  if (app.state === 'missing' && team && app.progress === null && !app.availableVersion) {
+    return (
+      <div className="flex items-start gap-2 rounded-md border border-line bg-surface-2 px-3 py-2 text-[13px] text-ink-muted">
+        <IconFolder className="mt-0.5 shrink-0" />
+        <span>Pas encore de version dans le dossier partagé, ou dossier inaccessible.</span>
+      </div>
+    );
+  }
+  if (app.state === 'missing' && app.kind === 'web' && !team) {
     return (
       <div className="flex items-start gap-2 rounded-md border border-line bg-surface-2 px-3 py-2 text-[13px] text-ink-muted">
         <IconFolder className="mt-0.5 shrink-0" />
@@ -186,7 +231,15 @@ export const AppNotice: React.FC<{ app: DockApp; actions: Actions }> = ({ app, a
 
 /** Boutons selon l'état et le type d'app. */
 export const AppActions: React.FC<{ app: DockApp; actions: Actions; pending: boolean; wide?: boolean }> = ({ app, actions, pending, wide }) => {
+  const team = React.useContext(TeamContext);
   const fill = wide ? 'min-w-[170px]' : 'w-full';
+  if (app.progress !== null) {
+    return (
+      <button type="button" disabled className={`${btnPrimary} ${fill}`}>
+        <IconSpinner /> {app.installed ? 'Mise à jour…' : 'Installation…'}
+      </button>
+    );
+  }
   if (app.state === 'starting' || pending) {
     return (
       <button type="button" disabled className={`${btnPrimary} ${fill}`}>
@@ -213,6 +266,13 @@ export const AppActions: React.FC<{ app: DockApp; actions: Actions; pending: boo
       </button>
     );
   }
+  if (app.state === 'missing' && app.availableVersion) {
+    return (
+      <button type="button" onClick={() => actions.install(app)} className={`${btnPrimary} ${fill}`}>
+        <IconDownload /> Installer
+      </button>
+    );
+  }
   if (app.state === 'missing') {
     if (app.kind === 'native') {
       const link = app.links[0];
@@ -222,6 +282,7 @@ export const AppActions: React.FC<{ app: DockApp; actions: Actions; pending: boo
         </button>
       ) : null;
     }
+    if (team) return null;
     return (
       <button type="button" onClick={() => actions.folder(app)} className={`${btnGhost} ${fill}`}>
         <IconFolder /> Ouvrir le dossier

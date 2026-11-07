@@ -122,6 +122,49 @@ def dossier_web(app: AppEntry) -> Path:
     return home_dir() / "apps" / app.id
 
 
+# --- Dossier partagé de l'équipe ---------------------------------------------------------------------------
+
+def _est_installateur(f: Path) -> bool:
+    if not f.is_file():
+        return False
+    suffixe = f.suffix.lower()
+    if winapi.IS_WIN:
+        return suffixe in (".exe", ".msi")
+    if IS_MAC:
+        return suffixe in (".dmg", ".pkg", ".zip")
+    return suffixe in (".exe", ".msi", ".dmg", ".py")
+
+
+def dossier_source(app: AppEntry, partage: Path) -> Path:
+    return partage / (app.source or app.id)
+
+
+def trouver_dans_partage(app: AppEntry, partage: Path | None, nom: str | None = None) -> Trouvee | None:
+    """Version la plus récente déposée dans le sous-dossier de l'app sur le partage.
+    App web : son programme ; app native : son installateur (Mapline_1.3.1_x64-setup.exe…)."""
+    if partage is None:
+        return None
+    dossier = dossier_source(app, partage)
+    try:
+        if not dossier.is_dir():
+            return None
+        prefixe = (nom or app.exe).lower()
+        fichiers = []
+        for f in dossier.iterdir():
+            base = _nom_sans_extension(f) if f.suffix.lower() in (".exe", ".py") else f.stem
+            if not base.lower().startswith(prefixe) or (len(base) > len(prefixe) and base[len(prefixe)].isalpha()):
+                continue
+            if (app.kind == "native" and _est_installateur(f)) or (app.kind == "web" and _est_programme(f)):
+                fichiers.append(f)
+        return _plus_recent(fichiers)
+    except OSError:
+        return None
+
+
+def plus_recente(disponible: str | None, installee: str | None) -> bool:
+    return bool(disponible) and _cle_version(disponible) > _cle_version(installee)
+
+
 # --- Apps natives ------------------------------------------------------------------------------------------
 
 def _bundle_mac(chemin: Path) -> Trouvee | None:

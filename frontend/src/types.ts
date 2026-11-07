@@ -22,6 +22,14 @@ export interface DockApp {
   url: string | null;
   external: boolean;
   error: { code: string; message: string } | null;
+  /** Catalogue d'équipe : mode, installation sur ce poste, version disponible sur le partage. */
+  mode: 'auto' | 'optionnel' | 'masque';
+  installed: boolean;
+  availableVersion: string | null;
+  update: boolean;
+  progress: number | null;
+  installError: string | null;
+  isNew: boolean;
 }
 
 export interface DockState {
@@ -29,6 +37,21 @@ export interface DockState {
   platform: 'windows' | 'mac' | 'linux';
   home: string;
   catalogue: string;
+  /** shared : catalogue du dossier partagé ; cache : sa copie (partage inaccessible) ; local : apps.json. */
+  source: 'shared' | 'cache' | 'local';
+  sharedFolder: string | null;
+  sharedOk: boolean;
   error: string | null;
+  dock: { update: string | null; canUpdate: boolean };
+  canChooseFolder: boolean;
   apps: DockApp[];
+}
+
+export interface Settings {
+  shared_folder: string;
+  resolved: string | null;
+  reachable: boolean;
+  hasCatalogue: boolean;
+  home: string;
+  canChooseFolder: boolean;
 }

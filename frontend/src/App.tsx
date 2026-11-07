@@ -1,8 +1,8 @@
 import React from 'react';
 import { ActionError, api } from './api';
-import { AppPage, Home } from './screens';
+import { AppPage, Home, SettingsPage } from './screens';
 import type { DockApp, DockState } from './types';
-import { Actions, Header, IconAlert, PlatformContext } from './ui';
+import { Actions, Header, IconAlert, IconDownload, PlatformContext, TeamContext } from './ui';
 
 const useRoute = (): string => {
   const [hash, setHash] = React.useState(window.location.hash);
@@ -33,8 +33,8 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Suivi des états : plus rapproché pendant un démarrage
-  const busy = !!state?.apps.some((a) => a.state === 'starting') || pending.size > 0;
+  // Suivi des états : plus rapproché pendant un démarrage ou une installation
+  const busy = !!state?.apps.some((a) => a.state === 'starting' || a.progress !== null) || pending.size > 0;
   React.useEffect(() => {
     refresh();
     const timer = window.setInterval(refresh, busy ? 700 : 2000);
@@ -67,13 +67,24 @@ export const App: React.FC = () => {
     folder: (app) => run(null, () => api.folder(app.id)),
     logs: () => run(null, () => api.openFolder('logs')),
     link: (url) => run(null, () => api.openLink(url)),
+    install: (app) => run(null, async () => { await api.install(app.id); if (app.isNew) await api.seen([app.id]); }),
+    uninstall: (app) => run(app, () => api.uninstall(app.id)),
   };
 
+  const [restarting, setRestarting] = React.useState(false);
+  const updateDock = () => run(null, async () => {
+    const r = await api.updateDock();
+    if (r.restarting) setRestarting(true);
+  });
+
   const appId = route.startsWith('#/app/') ? decodeURIComponent(route.slice(6)) : null;
+  const settingsRoute = route === '#/reglages';
+  const team = !!state && state.source !== 'local';
   const current = appId ? state?.apps.find((a) => a.id === appId) : undefined;
 
   return (
     <PlatformContext.Provider value={state?.platform ?? 'windows'}>
+    <TeamContext.Provider value={team}>
     <div className="flex min-h-screen flex-col bg-bg font-sans text-[15px] leading-normal text-ink-body">
       <Header />
       <main className="mx-auto box-border flex w-full max-w-[1120px] flex-grow flex-col gap-6 px-6 pb-8 pt-10">
@@ -82,16 +93,38 @@ export const App: React.FC = () => {
             <IconAlert /> Studio Dock ne répond plus. Relancez-le.
           </div>
         )}
+        {restarting && (
+          <div role="status" className="flex items-center gap-2 rounded-md bg-accent-soft px-4 py-3 text-sm text-accent-ink">
+            Studio Dock redémarre avec la nouvelle version…
+          </div>
+        )}
+        {state?.dock.update && !restarting && (
+          <div className="flex flex-wrap items-center gap-3 rounded-md border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning-text">
+            <IconDownload className="shrink-0" />
+            <span className="flex-grow">Studio Dock {state.dock.update} est disponible dans le dossier partagé.</span>
+            <button type="button" onClick={updateDock} className="border-0 bg-transparent p-0 font-medium text-warning-text underline">
+              {state.dock.canUpdate ? 'Mettre à jour et redémarrer' : 'Ouvrir le dossier'}
+            </button>
+          </div>
+        )}
+        {state && state.source === 'cache' && (
+          <div role="status" className="flex items-start gap-2 rounded-md border border-line bg-surface px-4 py-3 text-sm text-ink-muted">
+            <IconAlert className="mt-0.5 shrink-0" />
+            <span>Le dossier partagé de l'équipe est inaccessible. Vos applications installées restent utilisables ; installations et mises à jour reprendront dès qu'il sera de nouveau accessible.</span>
+          </div>
+        )}
         {state?.error && (
           <div role="alert" className="flex items-start gap-2 rounded-md border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning-text">
             <IconAlert className="mt-0.5 shrink-0" />
             <span>
-              Le fichier de la liste des apps contient une erreur ; la dernière version valide reste affichée.
+              {state.source === 'local' ? 'La liste des apps contient une erreur' : 'Le catalogue de l\'équipe est illisible'} ; la dernière version valide reste affichée.
               <br /><span className="font-mono text-[13px]">{state.error}</span>
             </span>
           </div>
         )}
-        {!state ? (
+        {settingsRoute ? (
+          <SettingsPage onSaved={refresh} openFolder={(name) => run(null, () => api.openFolder(name))} />
+        ) : !state ? (
           <p className="text-ink-muted">Chargement…</p>
         ) : appId ? (
           current ? (
@@ -119,6 +152,7 @@ export const App: React.FC = () => {
         </div>
       )}
     </div>
+    </TeamContext.Provider>
     </PlatformContext.Provider>
   );
 };
