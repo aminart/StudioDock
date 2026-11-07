@@ -6,6 +6,9 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ### Ajouté
 
+- Nouvelles icônes de la suite : Studio Dock (exe Windows, app Mac, en-tête, onglet) et icônes des apps du
+  catalogue (SpecGen sarcelle, AuditErgo vert, DocAnalyser violet, Mapline bleu), en tuiles pleines (`style: logo`).
+  Script `scripts/fabriquer_icones.py` pour régénérer les `.ico` et `.icns`.
 - Fenêtre Windows Studio Dock (pywebview) : accueil « Mes applications » et fiche de chaque app avec sa prise en main.
 - Apps web (contrat commun : `--port`, `--no-browser`, `/health`) : Lancer, Ouvrir, Arrêter ; arrêt de toutes les apps
   lancées à la fermeture de Studio Dock, même en cas de plantage.

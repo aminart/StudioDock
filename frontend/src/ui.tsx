@@ -1,5 +1,6 @@
 import React from 'react';
 import type { DockApp } from './types';
+import logoDock from './assets/studiodock.svg';
 
 /* ---------- Icônes (traits, couleur du texte) ---------- */
 
@@ -37,13 +38,7 @@ export const IconSpinner = ({ size = 16 }: IconProps) => (
   </svg>
 );
 export const DockLogo = ({ size = 36 }: { size?: number }) => (
-  <span className="flex shrink-0 items-center justify-center rounded-md bg-primary" style={{ width: size, height: size }}>
-    <svg width={size / 2} height={size / 2} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2"
-      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" />
-      <rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" />
-    </svg>
-  </span>
+  <img src={logoDock} alt="" width={size} height={size} className="block shrink-0" />
 );
 
 /* ---------- Thème ---------- */
