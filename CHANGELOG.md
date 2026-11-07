@@ -4,6 +4,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+## [0.2.0] — 2026-11-07
+
 ### Ajouté
 
 - Windows : dossier d'installation choisi par chaque membre, distinct du dossier partagé. Au premier lancement, Studio
