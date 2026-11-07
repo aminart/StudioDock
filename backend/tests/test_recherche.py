@@ -46,3 +46,26 @@ def test_app_native_introuvable_ou_imposee(maison):
     (maison / "Mapline" / "Mapline.exe").write_text("")
     assert trouver_native(AppEntry(id="mapline", name="Mapline", kind="native", exe="Mapline",
                                    path="Mapline")).chemin.name == "Mapline.exe"
+
+
+def test_binaire_mac_sans_extension(maison):
+    dossier = maison / "apps" / "specgen"
+    dossier.mkdir(parents=True)
+    for nom in ("SpecGenerator-1.1.0", "SpecGenerator-1.2.0", "SpecGenerator-1.3.0.exe"):  # l'exe Windows est ignoré
+        (dossier / nom).write_text("")
+    trouvee = trouver_web(_app())
+    assert trouvee.chemin.name == "SpecGenerator-1.2.0" and trouvee.version == "1.2.0"
+
+
+def test_application_mac(maison, monkeypatch):
+    import plistlib
+
+    from app import recherche
+
+    bundle = maison / "Mapline.app" / "Contents"
+    bundle.mkdir(parents=True)
+    (bundle / "Info.plist").write_bytes(plistlib.dumps({"CFBundleShortVersionString": "1.3.1", "CFBundleExecutable": "mapline"}))
+    monkeypatch.setattr(recherche, "IS_MAC", True)
+    app = AppEntry(id="mapline", name="Mapline", kind="native", exe="Mapline", path=".")
+    trouvee = trouver_native(app)
+    assert trouvee.chemin.name == "Mapline.app" and trouvee.version == "1.3.1" and trouvee.processus == "mapline"

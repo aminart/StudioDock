@@ -93,6 +93,9 @@ export const Header: React.FC = () => (
 
 /* ---------- Pièces communes à la carte et à la fiche ---------- */
 
+/** Système du poste (renvoyé par l'API) : adapte les noms de fichiers dans les messages. */
+export const PlatformContext = React.createContext<'windows' | 'mac' | 'linux'>('windows');
+
 export const AppIcon: React.FC<{ app: DockApp; size: number }> = ({ app, size }) => {
   const logo = app.icon.style === 'logo';
   return (
@@ -148,6 +151,7 @@ const btnGhost = 'flex h-11 min-w-0 items-center justify-center gap-2 whitespace
 
 /** Message sous la carte : app introuvable ou erreur au lancement. */
 export const AppNotice: React.FC<{ app: DockApp; actions: Actions }> = ({ app, actions }) => {
+  const platform = React.useContext(PlatformContext);
   if (app.state === 'error' && app.error) {
     return (
       <div role="alert" className="flex flex-col gap-2 rounded-md bg-danger-soft px-3 py-2 text-[13px] text-danger-text">
@@ -169,7 +173,11 @@ export const AppNotice: React.FC<{ app: DockApp; actions: Actions }> = ({ app, a
     return (
       <div className="flex items-start gap-2 rounded-md border border-line bg-surface-2 px-3 py-2 text-[13px] text-ink-muted">
         <IconFolder className="mt-0.5 shrink-0" />
-        <span>Déposez <span className="font-mono">{app.exe}.exe</span> (ou <span className="font-mono">{app.exe}-X.Y.Z.exe</span>) dans le dossier de l'app.</span>
+        {platform === 'windows' ? (
+          <span>Déposez <span className="font-mono">{app.exe}.exe</span> (ou <span className="font-mono">{app.exe}-X.Y.Z.exe</span>) dans le dossier de l'app.</span>
+        ) : (
+          <span>Déposez la version Mac de <span className="font-mono">{app.exe}</span> (ou <span className="font-mono">{app.exe}-X.Y.Z</span>) dans le dossier de l'app.</span>
+        )}
       </div>
     );
   }

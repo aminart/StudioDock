@@ -1,5 +1,7 @@
-# Recette PyInstaller de StudioDock.exe (workflow « Build Windows exe », ou : pyinstaller --noconfirm StudioDock.spec).
+# Recette PyInstaller de Studio Dock (workflows « Build Windows exe » et « Build Mac app »,
+# ou : pyinstaller --noconfirm StudioDock.spec) : StudioDock.exe sous Windows, « Studio Dock.app » sur Mac.
 # Prérequis : l'interface compilée (cd frontend && npm ci && npm run build).
+import sys
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_submodules
@@ -51,15 +53,46 @@ a = Analysis(
     excludes=["tkinter", "matplotlib", "IPython", "pytest"],
 )
 pyz = PYZ(a.pure)
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.datas,
-    [],
-    name="StudioDock",
-    version=version_info,
-    icon="resources/studiodock.ico",
-    console=False,  # une fenêtre, pas de console noire
-    upx=False,
-)
+
+if sys.platform == "darwin":
+    # Mac : application « Studio Dock.app » (dossier, démarrage rapide), pour Intel ou puce Apple selon la machine
+    exe = EXE(
+        pyz,
+        a.scripts,
+        [],
+        exclude_binaries=True,
+        name="StudioDock",
+        console=False,
+        upx=False,
+    )
+    coll = COLLECT(exe, a.binaries, a.datas, name="StudioDock", upx=False)
+    app = BUNDLE(
+        coll,
+        name="Studio Dock.app",
+        icon="resources/studiodock.icns",
+        bundle_identifier="fr.aminart.studiodock",
+        version=VERSION,
+        info_plist={
+            "CFBundleName": "Studio Dock",
+            "CFBundleDisplayName": "Studio Dock",
+            "CFBundleShortVersionString": VERSION,
+            "CFBundleVersion": VERSION,
+            "LSMinimumSystemVersion": "12.0",
+            "NSHighResolutionCapable": True,
+            # Interface servie en local (http://127.0.0.1) : autorisée dans la fenêtre WebKit
+            "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True},
+        },
+    )
+else:
+    exe = EXE(
+        pyz,
+        a.scripts,
+        a.binaries,
+        a.datas,
+        [],
+        name="StudioDock",
+        version=version_info,
+        icon="resources/studiodock.ico",
+        console=False,  # une fenêtre, pas de console noire
+        upx=False,
+    )

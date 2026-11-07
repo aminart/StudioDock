@@ -26,6 +26,7 @@ export interface DockApp {
 
 export interface DockState {
   version: string;
+  platform: 'windows' | 'mac' | 'linux';
   home: string;
   catalogue: string;
   error: string | null;

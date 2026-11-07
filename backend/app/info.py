@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 APP_ID = "studiodock"
+PLATEFORME = "mac" if sys.platform == "darwin" else "windows" if sys.platform == "win32" else "linux"
 APP_NAME = "Studio Dock"
 DEFAULT_PORT = 8040
 
@@ -19,6 +20,7 @@ REPO_DIR = Path(__file__).resolve().parent.parent.parent
 
 def resources_dir() -> Path:
     """Fichiers livrés avec Studio Dock (catalogue par défaut, icônes, interface compilée)."""
+    # PyInstaller : dossier temporaire de l'exe (Windows) ou Contents/Frameworks de l'app (Mac)
     if EMPAQUETE:
         return Path(getattr(sys, "_MEIPASS"))
     return REPO_DIR
@@ -27,11 +29,15 @@ def resources_dir() -> Path:
 def home_dir() -> Path:
     """Dossier de Studio Dock : apps.json, apps\\<id>\\ et icônes personnalisées.
 
-    À côté de StudioDock.exe (dossier portable) ; STUDIODOCK_HOME pour un autre dossier ;
+    Windows : à côté de StudioDock.exe (dossier portable) ; Mac : ~/Library/Application Support/StudioDock ;
+    STUDIODOCK_HOME pour un autre dossier ;
     en développement, le dossier « local » du dépôt (ignoré par git).
     """
     if autre := os.environ.get("STUDIODOCK_HOME", "").strip():
         return Path(autre).expanduser().resolve()
+    if EMPAQUETE and sys.platform == "darwin":
+        # Mac : l'app est rangée dans Applications, ses réglages et les programmes des apps vont ici
+        return Path.home() / "Library" / "Application Support" / "StudioDock"
     if EMPAQUETE:
         return Path(sys.executable).resolve().parent
     return REPO_DIR / "local"
@@ -42,6 +48,8 @@ def logs_dir() -> Path:
     if EMPAQUETE and sys.platform == "win32":
         base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
         return Path(base) / "StudioDock" / "logs"
+    if EMPAQUETE and sys.platform == "darwin":
+        return Path.home() / "Library" / "Logs" / "StudioDock"
     return home_dir() / "logs"
 
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { ActionError, api } from './api';
 import { AppPage, Home } from './screens';
 import type { DockApp, DockState } from './types';
-import { Actions, Header, IconAlert } from './ui';
+import { Actions, Header, IconAlert, PlatformContext } from './ui';
 
 const useRoute = (): string => {
   const [hash, setHash] = React.useState(window.location.hash);
@@ -73,6 +73,7 @@ export const App: React.FC = () => {
   const current = appId ? state?.apps.find((a) => a.id === appId) : undefined;
 
   return (
+    <PlatformContext.Provider value={state?.platform ?? 'windows'}>
     <div className="flex min-h-screen flex-col bg-bg font-sans text-[15px] leading-normal text-ink-body">
       <Header />
       <main className="mx-auto box-border flex w-full max-w-[1120px] flex-grow flex-col gap-6 px-6 pb-8 pt-10">
@@ -118,5 +119,6 @@ export const App: React.FC = () => {
         </div>
       )}
     </div>
+    </PlatformContext.Provider>
   );
 };

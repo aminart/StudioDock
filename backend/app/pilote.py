@@ -161,7 +161,7 @@ class Pilote:
 
     def _etat_native(self, app: AppEntry, processus: dict[str, set[int]]) -> dict[str, Any]:
         trouvee = trouver_native(app)
-        pids = processus.get((app.exe + ".exe").lower(), set())
+        pids = processus.get(_nom_processus(app, trouvee), set())
         base = {"location": str(trouvee.chemin) if trouvee else None,
                 "folder": str(trouvee.chemin.parent) if trouvee else None,
                 "version": trouvee.version if trouvee else None, "url": None, "external": False, "error": None}
@@ -204,6 +204,7 @@ class Pilote:
             self._erreurs[app.id] = erreur
             raise erreur
         self._erreurs.pop(app.id, None)
+        winapi.autoriser_programme(trouvee.chemin)
         journal = logs_dir() / f"{app.id}.log"
         journal.parent.mkdir(parents=True, exist_ok=True)
         with open(journal, "w", encoding="utf-8") as sortie:
@@ -218,8 +219,11 @@ class Pilote:
         trouvee = trouver_native(app)
         if not trouvee:
             raise ErreurAction("missing", f"{app.name} n'est pas installée sur ce poste.")
-        winapi.lancer_detache(_commande(trouvee.chemin), cwd=trouvee.chemin.parent,
-                              stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if trouvee.chemin.suffix == ".app":  # Mac : ouverture comme depuis le Finder
+            subprocess.Popen(["open", "-a", str(trouvee.chemin)])
+        else:
+            winapi.lancer_detache(_commande(trouvee.chemin), cwd=trouvee.chemin.parent,
+                                  stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self._natives_demarrees[app.id] = time.monotonic()
 
     def _arreter_lancement(self, app_id: str) -> bool:
@@ -251,10 +255,14 @@ class Pilote:
         if app.kind == "web":
             winapi.ouvrir(f"http://{HOTE}:{app.port}")
             return
-        pids = _processus_par_exe().get((app.exe + ".exe").lower(), set())
+        trouvee = trouver_native(app)
+        pids = _processus_par_exe().get(_nom_processus(app, trouvee), set())
         if not pids:
             raise ErreurAction("off", f"{app.name} n'est pas lancée.")
-        winapi.premier_plan(pids)
+        if trouvee and trouvee.chemin.suffix == ".app":
+            subprocess.Popen(["open", "-a", str(trouvee.chemin)])  # Mac : met l'app au premier plan
+        else:
+            winapi.premier_plan(pids)
 
     def effacer_erreur(self, app: AppEntry) -> None:
         self._erreurs.pop(app.id, None)
@@ -263,6 +271,12 @@ class Pilote:
         """À la fermeture de Studio Dock : arrêt des apps web qu'il a lancées."""
         for app_id in list(self._lancements):
             self._arreter_lancement(app_id)
+
+
+def _nom_processus(app: AppEntry, trouvee) -> str:
+    if trouvee and trouvee.processus:
+        return trouvee.processus.lower()
+    return (app.exe + (".exe" if winapi.IS_WIN else "")).lower()
 
 
 def _processus_par_exe() -> dict[str, set[int]]:

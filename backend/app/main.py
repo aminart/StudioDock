@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from app import winapi
 from app.catalogue import AppEntry, Source, fichier_icone
-from app.info import APP_ID, APP_NAME, EMPAQUETE, REPO_DIR, VERSION, home_dir, logs_dir, resources_dir
+from app.info import APP_ID, APP_NAME, EMPAQUETE, PLATEFORME, REPO_DIR, VERSION, home_dir, logs_dir, resources_dir
 from app.pilote import ErreurAction, Pilote
 
 app = FastAPI(title=APP_NAME, version=VERSION, docs_url=None, redoc_url=None, openapi_url=None)
@@ -46,6 +46,7 @@ async def lister() -> dict[str, Any]:
     etats = await pilote.etats(catalogue.apps)
     return {
         "version": VERSION,
+        "platform": PLATEFORME,
         "home": str(home_dir()),
         "catalogue": str(source.chemin),
         "error": source.erreur,

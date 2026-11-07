@@ -1,12 +1,15 @@
-"""Trouver l'exe d'une app et sa version.
+"""Trouver le programme d'une app et sa version.
 
-App web : dans apps\\<id>\\ (ou apps\\<exe>\\, ou à côté de Studio Dock), un fichier « <exe>*.exe ».
-Plusieurs versions côte à côte (SpecGenerator-1.1.0.exe, SpecGenerator-1.2.0.exe) : la plus récente gagne.
-App native : emplacement imposé, sinon programme installé (registre Windows), sinon dossiers d'installation usuels.
+App web : dans apps/<id>/ (ou apps/<exe>/, ou à la racine du dossier de Studio Dock), un fichier « <exe>… » :
+  Windows : SpecGenerator.exe, SpecGenerator-1.1.0.exe ; Mac : SpecGenerator, SpecGenerator-1.1.0 (binaire exécutable).
+  Plusieurs versions côte à côte : la plus récente gagne.
+App native : emplacement imposé, sinon programme installé (Windows : registre ; Mac : dossier Applications),
+  sinon dossiers d'installation usuels.
 """
 from __future__ import annotations
 
 import os
+import plistlib
 import re
 import sys
 import time
@@ -18,14 +21,35 @@ from app.catalogue import AppEntry
 from app.info import home_dir
 
 VERSION_NOM = re.compile(r"(\d+)\.(\d+)\.(\d+)")
-# .py : apps de test et de développement, lancées avec l'interpréteur Python
-EXTENSIONS = (".exe",) if winapi.IS_WIN else (".exe", ".py")
+IS_MAC = sys.platform == "darwin"
 
 
 @dataclass
 class Trouvee:
     chemin: Path
     version: str | None
+    processus: str | None = None  # app native : nom du processus à surveiller
+
+
+def _nom_sans_extension(f: Path) -> str:
+    """« SpecGenerator-1.1.0.exe » → « SpecGenerator-1.1.0 » ; « SpecGenerator-1.1.0 » (Mac) reste tel quel."""
+    if f.suffix.lower() in (".exe", ".py"):
+        return f.stem
+    return f.name
+
+
+def _est_programme(f: Path) -> bool:
+    if not f.is_file():
+        return False
+    suffixe = f.suffix.lower()
+    if suffixe == ".py":
+        return not winapi.IS_WIN  # apps de test et de développement
+    if winapi.IS_WIN:
+        return suffixe == ".exe"
+    if suffixe == ".exe":
+        return False
+    # Mac / Linux : binaire sans extension (un suffixe purement numérique vient du numéro de version)
+    return suffixe == "" or suffixe[1:].isdigit()
 
 
 def _cle_version(version: str | None) -> tuple[int, ...]:
@@ -42,13 +66,17 @@ def _candidats(dossier: Path, exe: str) -> list[Path]:
     if not dossier.is_dir():
         return []
     prefixe = exe.lower()
-    return [f for f in dossier.iterdir()
-            if f.is_file() and f.suffix.lower() in EXTENSIONS and f.name.lower().startswith(prefixe)
-            and (len(f.stem) == len(prefixe) or not f.stem[len(prefixe)].isalpha())]
+    resultat = []
+    for f in dossier.iterdir():
+        nom = _nom_sans_extension(f)
+        if (nom.lower().startswith(prefixe) and (len(nom) == len(prefixe) or not nom[len(prefixe)].isalpha())
+                and _est_programme(f)):
+            resultat.append(f)
+    return resultat
 
 
 def _version_de(chemin: Path) -> str | None:
-    m = VERSION_NOM.search(chemin.stem)
+    m = VERSION_NOM.search(_nom_sans_extension(chemin))
     if m:
         return ".".join(m.groups())
     return _version_fichier_cache(chemin)
@@ -87,11 +115,36 @@ def trouver_web(app: AppEntry) -> Trouvee | None:
 
 
 def dossier_web(app: AppEntry) -> Path:
-    """Où déposer l'exe d'une app web."""
+    """Où déposer le programme d'une app web."""
     if app.path:
         cible = _resoudre(app.path)
         return cible.parent if cible.suffix else cible
     return home_dir() / "apps" / app.id
+
+
+# --- Apps natives ------------------------------------------------------------------------------------------
+
+def _bundle_mac(chemin: Path) -> Trouvee | None:
+    """Application Mac (.app) : version et nom du processus lus dans Contents/Info.plist."""
+    try:
+        infos = plistlib.loads((chemin / "Contents" / "Info.plist").read_bytes())
+    except (OSError, ValueError, plistlib.InvalidFileException):
+        return None
+    return Trouvee(chemin, infos.get("CFBundleShortVersionString"), infos.get("CFBundleExecutable"))
+
+
+def _trouver_native_mac(app: AppEntry) -> Trouvee | None:
+    if app.path:
+        cible = _resoudre(app.path)
+        if cible.suffix != ".app":
+            cible = cible / f"{app.name}.app"
+        return _bundle_mac(cible)
+    noms = {f"{app.install_name or app.name}.app", f"{app.exe}.app"}
+    for base in (Path("/Applications"), Path.home() / "Applications"):
+        for nom in noms:
+            if (base / nom).is_dir() and (trouvee := _bundle_mac(base / nom)):
+                return trouvee
+    return None
 
 
 _cache_installees: tuple[float, list[dict[str, str]]] = (0.0, [])
@@ -105,12 +158,14 @@ def _installees() -> list[dict[str, str]]:
 
 
 def trouver_native(app: AppEntry) -> Trouvee | None:
+    if IS_MAC:
+        return _trouver_native_mac(app)
     nom_exe = app.exe + ".exe"
     if app.path:
         cible = _resoudre(app.path)
         if cible.is_dir():
             cible = cible / nom_exe
-        return Trouvee(cible, _version_de(cible)) if cible.is_file() else None
+        return Trouvee(cible, _version_de(cible), nom_exe) if cible.is_file() else None
 
     nom_installe = (app.install_name or app.name).lower()
     for prog in _installees():
@@ -125,13 +180,13 @@ def trouver_native(app: AppEntry) -> Trouvee | None:
                 possibles.append(Path(icone))
         for chemin in possibles:
             if chemin.is_file():
-                return Trouvee(chemin, prog.get("DisplayVersion") or _version_de(chemin))
+                return Trouvee(chemin, prog.get("DisplayVersion") or _version_de(chemin), chemin.name)
 
-    if sys.platform == "win32":
+    if winapi.IS_WIN:
         bases = [os.environ.get("LOCALAPPDATA", ""), os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs"),
                  os.environ.get("ProgramFiles", ""), os.environ.get("ProgramFiles(x86)", "")]
         for base in filter(None, bases):
             chemin = Path(base) / app.name / nom_exe
             if chemin.is_file():
-                return Trouvee(chemin, _version_de(chemin))
+                return Trouvee(chemin, _version_de(chemin), nom_exe)
     return None

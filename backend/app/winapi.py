@@ -102,6 +102,21 @@ def ouvrir(cible: str) -> None:
         subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", cible])
 
 
+def autoriser_programme(chemin: Path) -> None:
+    """Mac et Linux : rend le programme d'une app exécutable ; sur Mac, retire la « quarantaine » posée sur
+    les fichiers téléchargés, qui ferait refuser le lancement d'un programme non signé par Gatekeeper."""
+    if IS_WIN or chemin.suffix.lower() == ".py":
+        return
+    try:
+        mode = chemin.stat().st_mode
+        if not mode & 0o100:
+            chemin.chmod(mode | 0o755)
+    except OSError:
+        pass
+    if sys.platform == "darwin":
+        subprocess.run(["xattr", "-d", "com.apple.quarantine", str(chemin)], capture_output=True, check=False)
+
+
 def message(titre: str, texte: str) -> None:
     """Boîte de message Windows (bloquante) ; ailleurs, attente d'Entrée dans le terminal."""
     if IS_WIN:
