@@ -1,0 +1,25 @@
+# Historique des versions de Studio Dock
+
+Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [versionnage sémantique](https://semver.org/lang/fr/).
+
+## [Non publié]
+
+### Ajouté
+
+- Fenêtre Windows Studio Dock (pywebview) : accueil « Mes applications » et fiche de chaque app avec sa prise en main.
+- Apps web (contrat commun : `--port`, `--no-browser`, `/health`) : Lancer, Ouvrir, Arrêter ; arrêt de toutes les apps
+  lancées à la fermeture de Studio Dock, même en cas de plantage.
+- Apps natives (ex. Mapline) : détection de l'installation Windows, lancement, mise au premier plan.
+- Liste des apps dans `apps.json` à côté de l'exe (créé au premier lancement) ; exe rangés dans `apps\<id>\`,
+  plusieurs versions côte à côte acceptées (la plus récente est lancée).
+- Messages : app introuvable (avec le dossier où déposer l'exe), port occupé, arrêt inattendu avec la fin du journal.
+- Design system Night Navy, mode clair et sombre.
+- Catalogue d'équipe : `catalogue.json` dans un dossier partagé réglé dans Studio Dock (écran Réglages, ou
+  `studiodock.config.json` livré à côté de l'exe). Les apps sont copiées depuis le sous-dossier de chaque projet vers
+  `apps\<id>\` sur le poste, jamais lancées depuis le partage ; installation, mise à jour (arrêt de l'app si lancée)
+  et retrait ; apps `auto` installées et mises à jour d'office, `optionnel` dans « Disponibles pour vous » avec le badge
+  « Nouveau », `masque` cachées ; copie locale du catalogue quand le partage est inaccessible.
+- Mise à jour de Studio Dock depuis le sous-dossier `StudioDock\` du partage : remplacement de l'exe et redémarrage
+  (Windows) ; sur Mac, ouverture du dossier.
+- Version Mac : « Studio Dock.app » pour Mac Intel et Mac à puce Apple (macOS 12 et plus), dossier dans
+  `~/Library/Application Support/StudioDock` ; applications Mac retrouvées dans Applications.

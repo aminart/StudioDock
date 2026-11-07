@@ -1,0 +1,100 @@
+{
+  "apps": [
+    {
+      "id": "specgen",
+      "name": "SpecGen",
+      "kind": "web",
+      "port": 8010,
+      "ai": true,
+      "exe": "SpecGenerator",
+      "icon": { "file": "icons/specgen.svg", "style": "symbole" },
+      "tagline": "Des specs en un rien de temps.",
+      "description": "SpecGen transforme vos documents, vos schémas et le JSON de vos maquettes en documents UX pour les développeurs : un contexte projet (parcours, navigation, macro layout), puis une spécification détaillée par écran ou composant, exportable en Word, HTML ou Markdown.",
+      "points": [
+        "Conversion de documents existants (Word, PDF, PowerPoint, Excel) et de schémas draw.io en Markdown.",
+        "Contexte projet généré à partir de vos documents et du JSON de l'application.",
+        "Spécification détaillée par écran : variantes, états, comportements, erreurs.",
+        "Modification directe dans l'aperçu, traduction en anglais ou en français, exports Word, HTML, Markdown."
+      ],
+      "tutorial": [
+        { "title": "Vérifiez la connexion au modèle", "text": "Dans l'écran Paramètres de SpecGen : adresse du service, clé et bouton Tester la connexion." },
+        { "title": "Préparez vos sources", "text": "Convertissez si besoin vos documents et schémas draw.io en Markdown (étape 0)." },
+        { "title": "Générez le contexte projet", "text": "Déposez les documents Markdown et les JSON de l'application, puis lancez la génération." },
+        { "title": "Générez la spécification d'un écran", "text": "Ajoutez le JSON de l'écran ou du composant, et une capture si vous en avez une." },
+        { "title": "Relisez et exportez", "text": "Corrigez directement dans l'aperçu (bouton Modifier), puis exportez en Word, HTML ou Markdown." }
+      ]
+    },
+    {
+      "id": "audit-ergo",
+      "name": "AuditErgo",
+      "kind": "web",
+      "port": 8501,
+      "ai": true,
+      "exe": "AuditErgo",
+      "icon": { "file": "icons/auditergo.svg", "style": "symbole" },
+      "tagline": "Vos audits, sans la partie fastidieuse.",
+      "description": "AuditErgo aide à produire des audits ergonomiques heuristiques au même standard : il contrôle la forme du fichier d'audit, propose pour chaque constat le critère, la recommandation et la gravité, complète les cellules vides et corrige les saisies, en français ou en anglais.",
+      "points": [
+        "Contrôle de forme du fichier d'audit.",
+        "Critère, recommandation et gravité proposés pour chaque constat, à valider.",
+        "Complétion des cellules vides et correction des saisies.",
+        "Rapport d'audit, en français ou en anglais."
+      ],
+      "tutorial": [
+        { "title": "Vérifiez la connexion au modèle", "text": "Écran Réglages d'AuditErgo : Ollama ou LM Studio sur le poste, ou passerelle de l'organisation." },
+        { "title": "Déposez votre fichier d'audit", "text": "AuditErgo en contrôle d'abord la forme et signale ce qui manque." },
+        { "title": "Relisez les propositions", "text": "Critère, recommandation et gravité proposés pour chaque constat : acceptez, modifiez ou refusez." },
+        { "title": "Récupérez l'audit complété", "text": "Téléchargez le fichier corrigé et le rapport." }
+      ]
+    },
+    {
+      "id": "docanalyser",
+      "name": "DocAnalyser",
+      "kind": "web",
+      "port": 8020,
+      "ai": true,
+      "exe": "DocAnalyser",
+      "icon": { "file": "icons/docanalyser.svg", "style": "symbole" },
+      "tagline": "Des documents aux insights.",
+      "description": "Entretiens, études, comptes rendus : DocAnalyser lit vos documents et en fait ressortir les grands thèmes et les parcours utilisateurs. Chaque thème et chaque étape renvoient au passage qui les justifie, pour que vous puissiez toujours vérifier d'où vient une conclusion.",
+      "points": [
+        "Synthèse thématique d'un corpus de documents, avec les sources.",
+        "Parcours utilisateurs reconstitués à partir des récits.",
+        "Gros documents traités automatiquement par lots.",
+        "Historique de vos analyses, sur ce poste."
+      ],
+      "tutorial": [
+        { "title": "Vérifiez la connexion au modèle", "text": "Écran Réglages de DocAnalyser : ajoutez une connexion compatible OpenAI et testez-la." },
+        { "title": "Créez une nouvelle analyse", "text": "Déposez vos documents : entretiens, études, comptes rendus." },
+        { "title": "Choisissez le modèle et lancez", "text": "Les gros documents sont découpés et traités par lots automatiquement." },
+        { "title": "Explorez les résultats", "text": "Thèmes et parcours utilisateurs, chacun relié au passage qui le justifie." },
+        { "title": "Retrouvez vos analyses", "text": "Elles restent dans l'Historique de DocAnalyser, sur ce poste." }
+      ]
+    },
+    {
+      "id": "mapline",
+      "name": "Mapline",
+      "kind": "native",
+      "ai": false,
+      "exe": "Mapline",
+      "icon": { "file": "icons/mapline.svg", "style": "logo" },
+      "tagline": "Vos maps UX, 100 % hors ligne.",
+      "description": "Mapline réunit journey maps, service blueprints, storyboards, user flows et personas dans une application de bureau rapide. Aucun compte, aucun cloud : vos projets sont de simples fichiers sur votre poste.",
+      "points": [
+        "Journey maps : phases, étapes, couloirs par persona, lignes de visibilité.",
+        "User flows : cartes d'activité et de décision, branches et boucles, mise en page automatique.",
+        "Personas et storyboards dans le même projet.",
+        "Aucune connexion réseau : tout reste sur le poste."
+      ],
+      "tutorial": [
+        { "title": "Installez Mapline", "text": "Installateur Windows de la dernière release (Mapline_x.y.z_x64-setup.exe)." },
+        { "title": "Créez un projet", "text": "Un projet regroupe autant de maps, de flows et de personas que nécessaire." },
+        { "title": "Construisez votre map", "text": "Ajoutez phases, étapes et couloirs, puis reliez les cartes." },
+        { "title": "Présentez", "text": "Présentez toutes les maps d'un projet d'un seul tenant." }
+      ],
+      "links": [
+        { "label": "Dernière version de Mapline", "url": "https://github.com/aminart/Mapline/releases/latest" }
+      ]
+    }
+  ]
+}

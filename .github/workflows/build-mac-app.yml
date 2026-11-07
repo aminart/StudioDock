@@ -1,0 +1,144 @@
+name: Build Mac app
+
+# Fabrique « Studio Dock.app » sur des Mac de GitHub, une version par type de processeur :
+# - Intel (Mac jusqu'à 2020) et puce Apple (M1 et suivants), toutes deux pour macOS 12 et plus récents ;
+# - à chaque push : zips disponibles en artefacts (onglet Actions) ;
+# - à chaque release publiée (tag vX.Y.Z) : StudioDock-X.Y.Z-mac-intel.zip et StudioDock-X.Y.Z-mac-apple.zip
+#   sont joints à la release. Le tag doit correspondre au fichier VERSION.
+
+on:
+  push:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            arch: intel
+          - runner: macos-15
+            arch: apple
+    runs-on: ${{ matrix.runner }}
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "12.0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version
+        id: version
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Studio Dock $version ($(uname -m))"
+          if [ "${{ github.event_name }}" = "release" ]; then
+            tag="${{ github.event.release.tag_name }}"
+            if [ "$tag" != "v$version" ]; then
+              echo "::error::Le tag $tag ne correspond pas au fichier VERSION ($version). Lancer scripts/bump_version.py avant la release."
+              exit 1
+            fi
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Interface
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Application
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt pyinstaller
+          pyinstaller --noconfirm StudioDock.spec
+          ls -la "dist/Studio Dock.app/Contents/MacOS"
+          file "dist/Studio Dock.app/Contents/MacOS/StudioDock"
+
+      - name: Compatibilité macOS 12
+        run: |
+          # Chaque binaire de l'application doit accepter macOS 12 (version minimale inscrite par le compilateur)
+          trop_recents=0
+          while IFS= read -r -d '' f; do
+            file "$f" | grep -q "Mach-O" || continue
+            v=$(otool -l "$f" | awk '/LC_BUILD_VERSION/{b=1} b && $1=="minos"{print $2; b=0} /LC_VERSION_MIN_MACOSX/{m=1} m && $1=="version"{print $2; m=0}' | sort -V | tail -1)
+            [ -z "$v" ] && continue
+            if [ "$(printf '%s\n12.0\n' "$v" | sort -V | tail -1)" != "12.0" ]; then
+              echo "::error::$f demande macOS $v"
+              trop_recents=$((trop_recents + 1))
+            fi
+          done < <(find "dist/Studio Dock.app" -type f -print0)
+          echo "Binaires demandant plus que macOS 12 : $trop_recents"
+          [ "$trop_recents" -eq 0 ]
+
+      - name: Vérification
+        run: |
+          mkdir -p verif
+          "dist/Studio Dock.app/Contents/MacOS/StudioDock" --no-window --port 8599 --home "$PWD/verif" &
+          for i in $(seq 90); do
+            if curl -sf http://127.0.0.1:8599/health > health.json; then
+              cat health.json; echo
+              grep -q '"version":"${{ steps.version.outputs.version }}"' health.json || { echo "::error::Version inattendue"; exit 1; }
+              curl -sf http://127.0.0.1:8599/api/apps | grep -q '"platform":"mac"' || { echo "::error::Liste des apps absente"; exit 1; }
+              curl -sf http://127.0.0.1:8599/ | grep -q 'Studio Dock' || { echo "::error::Interface absente"; exit 1; }
+              test -f verif/apps.json || { echo "::error::apps.json non créé"; exit 1; }
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::L'application ne répond pas sur /health"
+          exit 1
+
+      - name: Vérification de la fenêtre (WebKit)
+        # Indicatif : la machine de GitHub peut ne pas autoriser l'ouverture de fenêtres
+        continue-on-error: true
+        run: |
+          mkdir -p verif-fenetre
+          "dist/Studio Dock.app/Contents/MacOS/StudioDock" --check-window --port 8598 --home "$PWD/verif-fenetre" &
+          pid=$!
+          for i in $(seq 90); do
+            if ! kill -0 $pid 2>/dev/null; then
+              wait $pid; code=$?
+              echo "Fenêtre ouverte et fermée (code $code)"
+              exit $code
+            fi
+            sleep 1
+          done
+          kill $pid; echo "::warning::La fenêtre ne s'est pas fermée seule"; exit 1
+
+      - name: Zip
+        id: zip
+        run: |
+          name="StudioDock-${{ steps.version.outputs.version }}-mac-${{ matrix.arch }}.zip"
+          # ditto garde les liens et les droits de l'application (un zip ordinaire la casserait)
+          ditto -c -k --sequesterRsrc --keepParent "dist/Studio Dock.app" "dist/$name"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          ls -la "dist/$name"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StudioDock-mac-${{ matrix.arch }}
+          path: dist/${{ steps.zip.outputs.name }}
+          if-no-files-found: error
+
+      - name: Joindre le zip à la release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" "dist/${{ steps.zip.outputs.name }}" --clobber
