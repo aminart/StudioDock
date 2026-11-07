@@ -100,6 +100,7 @@ jobs:
           echo; sleep 4; attendre || { echo "::error::Pas de redémarrage après installation"; exit 1; }
           test -f /c/sd-poste-1/StudioDock.exe || { echo "::error::Exe non copié"; exit 1; }
           echo "Processus : $(chemin_exe)"
+          curl -sf http://127.0.0.1:8597/api/settings; echo
           chemin_exe | grep -qi 'sd-poste-1' || { echo "::error::Studio Dock ne tourne pas depuis le dossier choisi"; exit 1; }
           curl -sf http://127.0.0.1:8597/api/apps | grep -q '"needsInstall":false' || { echo "::error::Toujours à installer"; exit 1; }
           curl -sf http://127.0.0.1:8597/api/settings | grep -q 'partage' || { echo "::error::Dossier partagé non retenu"; exit 1; }
