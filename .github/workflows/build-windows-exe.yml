@@ -100,9 +100,6 @@ jobs:
           echo; sleep 4; attendre || { echo "::error::Pas de redémarrage après installation"; exit 1; }
           test -f /c/sd-poste-1/StudioDock.exe || { echo "::error::Exe non copié"; exit 1; }
           echo "Processus : $(chemin_exe)"
-          curl -sf http://127.0.0.1:8597/api/settings; echo
-          curl -s -w ' [%{http_code}]' http://127.0.0.1:8597/api/apps | cut -c1-1500; echo
-          tail -n 40 "$LOCALAPPDATA/StudioDock/logs/studiodock.log" 2>/dev/null || true
           chemin_exe | grep -qi 'sd-poste-1' || { echo "::error::Studio Dock ne tourne pas depuis le dossier choisi"; exit 1; }
           curl -sf http://127.0.0.1:8597/api/apps | grep -q '"needsInstall":false' || { echo "::error::Toujours à installer"; exit 1; }
           curl -sf http://127.0.0.1:8597/api/settings | grep -q 'partage' || { echo "::error::Dossier partagé non retenu"; exit 1; }
@@ -122,6 +119,10 @@ jobs:
           sleep 8; echo "Processus : $(chemin_exe)"
           chemin_exe | grep -qi 'sd-poste-2' || { echo "::error::L'exe du partage n'a pas ouvert la copie installée"; exit 1; }
           powershell -NoProfile -Command "Stop-Process -Name StudioDock -Force"
+
+      - name: Journal de Studio Dock (en cas d'échec)
+        if: failure()
+        run: tail -n 60 "$LOCALAPPDATA/StudioDock/logs/studiodock.log" 2>/dev/null || echo "Pas de journal"
 
       - name: Vérification de la fenêtre (WebView2)
         # Indicatif : la machine de GitHub n'a pas d'utilisateur connecté, la fenêtre peut y échouer

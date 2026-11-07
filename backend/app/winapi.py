@@ -4,6 +4,7 @@ Hors Windows (développement, tests), chaque fonction a un équivalent simple ou
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import webbrowser
@@ -166,7 +167,12 @@ def version_fichier(chemin: Path) -> str | None:
     import ctypes
     from ctypes import wintypes
 
-    version = ctypes.WinDLL("version")
+    # Chemin complet : dans l'exe (PyInstaller), un nom seul serait cherché dans son dossier temporaire
+    systeme = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "version.dll")
+    try:
+        version = ctypes.WinDLL(systeme)
+    except OSError:
+        return None
     taille = version.GetFileVersionInfoSizeW(str(chemin), None)
     if not taille:
         return None
