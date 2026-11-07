@@ -14,3 +14,5 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
   plusieurs versions côte à côte acceptées (la plus récente est lancée).
 - Messages : app introuvable (avec le dossier où déposer l'exe), port occupé, arrêt inattendu avec la fin du journal.
 - Design system Night Navy, mode clair et sombre.
+- Version Mac : « Studio Dock.app » pour Mac Intel et Mac à puce Apple (macOS 12 et plus), dossier dans
+  `~/Library/Application Support/StudioDock` ; applications Mac retrouvées dans Applications.

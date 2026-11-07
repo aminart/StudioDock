@@ -1,6 +1,6 @@
 # Studio Dock
 
-Fenêtre Windows qui lance les applications UX installées sur le poste (SpecGen, AuditErgo, DocAnalyser, Mapline…),
+Fenêtre Windows et Mac qui lance les applications UX installées sur le poste (SpecGen, AuditErgo, DocAnalyser, Mapline…),
 affiche leur état et les arrête quand on la ferme. Aucune app n'est écrite dans son code : la liste, les textes,
 les icônes et les tutoriels viennent du fichier `apps.json`.
 
@@ -30,6 +30,23 @@ Les apps de bureau (Mapline) s'installent normalement : Studio Dock les retrouve
 La fenêtre utilise le moteur Edge WebView2, présent sur Windows 10 et 11. Les exe ne sont pas signés : au premier
 lancement, Windows peut demander « Informations complémentaires » puis « Exécuter quand même ».
 
+## Installation sur Mac
+
+Studio Dock existe pour Mac Intel et Mac à puce Apple, macOS 12 (Monterey) ou plus récent. Pour savoir lequel
+prendre : menu Pomme > « À propos de ce Mac », ligne « Processeur » (Intel) ou « Puce » (Apple M1, M2…).
+
+1. Télécharger `StudioDock-X.Y.Z-mac-intel.zip` ou `StudioDock-X.Y.Z-mac-apple.zip` depuis la dernière release.
+2. Double-cliquer sur le zip, puis glisser « Studio Dock » dans le dossier Applications.
+3. Premier lancement : l'application n'est pas signée par Apple.
+   - macOS 12 à 14 : clic droit (ou Ctrl + clic) sur Studio Dock > Ouvrir > Ouvrir.
+   - macOS 15 et plus : l'ouvrir une fois, puis Réglages Système > Confidentialité et sécurité > « Ouvrir quand même ».
+   - En dernier recours, dans le Terminal : `xattr -dr com.apple.quarantine "/Applications/Studio Dock.app"`.
+
+Sur Mac, le dossier de Studio Dock (`apps.json`, `apps/`, `icons/`) est `~/Library/Application Support/StudioDock`
+(bouton « Dossier de Studio Dock » en bas de la fenêtre) et les journaux sont dans `~/Library/Logs/StudioDock`.
+Les apps web y attendent leur version Mac (`apps/specgen/SpecGenerator-1.1.0`, sans `.exe`), qui n'est pas encore
+fabriquée ; les applications Mac installées (Mapline) sont retrouvées dans Applications.
+
 ## Ce que fait Studio Dock
 
 | | App web (SpecGen, AuditErgo, DocAnalyser) | App de bureau (Mapline) |
@@ -37,12 +54,13 @@ lancement, Windows peut demander « Informations complémentaires » puis « Ex�
 | Lancer | `<exe> --port N --no-browser`, prête quand `GET /health` répond | Lance l'exe |
 | Une fois lancée | **Ouvrir** (navigateur) et **Arrêter** | **Afficher** (fenêtre au premier plan) |
 | État | `/health` sur son port | Processus présent |
-| À la fermeture de Studio Dock | Arrêtée, même si Studio Dock plante (groupe de processus Windows) | Continue |
+| À la fermeture de Studio Dock | Arrêtée (sous Windows, même si Studio Dock plante : groupe de processus) | Continue |
 
 Messages affichés sur la carte : exe introuvable (avec le dossier où le déposer), port pris par une autre application,
 arrêt inattendu (fin du journal de l'app). Une app déjà lancée hors de Studio Dock est reconnue et peut être arrêtée.
 
-Journaux : `%LOCALAPPDATA%\StudioDock\logs` (un fichier par app, plus `studiodock.log`).
+Journaux : `%LOCALAPPDATA%\StudioDock\logs` sous Windows, `~/Library/Logs/StudioDock` sur Mac (un fichier par app,
+plus `studiodock.log`).
 
 ## `apps.json`
 
@@ -116,4 +134,5 @@ Le numéro de version vit dans le fichier `VERSION`, l'historique dans `CHANGELO
    et date la section « Non publié » du CHANGELOG.
 2. Committer et fusionner sur `main`.
 3. Créer la release GitHub avec le tag **`vX.Y.Z`** (exactement `v` + la version) : quelques minutes plus tard, le
-   workflow « Build Windows exe » y joint `StudioDock-X.Y.Z.exe` et `StudioDock-X.Y.Z-windows.zip`.
+   workflow « Build Windows exe » y joint `StudioDock-X.Y.Z.exe` et `StudioDock-X.Y.Z-windows.zip`, et le workflow
+   « Build Mac app » `StudioDock-X.Y.Z-mac-intel.zip` et `StudioDock-X.Y.Z-mac-apple.zip`.
