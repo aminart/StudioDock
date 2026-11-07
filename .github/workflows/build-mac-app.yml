@@ -71,6 +71,22 @@ jobs:
           ls -la "dist/Studio Dock.app/Contents/MacOS"
           file "dist/Studio Dock.app/Contents/MacOS/StudioDock"
 
+      - name: Compatibilité macOS 12
+        run: |
+          # Chaque binaire de l'application doit accepter macOS 12 (version minimale inscrite par le compilateur)
+          trop_recents=0
+          while IFS= read -r -d '' f; do
+            file "$f" | grep -q "Mach-O" || continue
+            v=$(otool -l "$f" | awk '/LC_BUILD_VERSION/{b=1} b && $1=="minos"{print $2; b=0} /LC_VERSION_MIN_MACOSX/{m=1} m && $1=="version"{print $2; m=0}' | sort -V | tail -1)
+            [ -z "$v" ] && continue
+            if [ "$(printf '%s\n12.0\n' "$v" | sort -V | tail -1)" != "12.0" ]; then
+              echo "::error::$f demande macOS $v"
+              trop_recents=$((trop_recents + 1))
+            fi
+          done < <(find "dist/Studio Dock.app" -type f -print0)
+          echo "Binaires demandant plus que macOS 12 : $trop_recents"
+          [ "$trop_recents" -eq 0 ]
+
       - name: Vérification
         run: |
           mkdir -p verif
