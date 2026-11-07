@@ -79,6 +79,51 @@ jobs:
           echo "::error::L'exe ne répond pas sur /health"
           exit 1
 
+      - name: Vérification de l'installation dans un dossier choisi
+        run: |
+          set -u
+          attendre() { for i in $(seq 90); do curl -sf http://127.0.0.1:8597/health >/dev/null && return 0; sleep 1; done; return 1; }
+          chemin_exe() { powershell -NoProfile -Command "(Get-Process StudioDock -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Path | Sort-Object -Unique) -join ';'"; }
+          mkdir -p partage/StudioDock && cp dist/StudioDock.exe partage/StudioDock/
+          printf '{"apps": []}' > partage/catalogue.json
+          ./partage/StudioDock/StudioDock.exe --no-window --port 8597 &
+          attendre || { echo "::error::L'exe du partage ne répond pas"; exit 1; }
+          curl -sf http://127.0.0.1:8597/api/apps | grep -q '"needsInstall":true' || { echo "::error::Écran d'installation attendu"; exit 1; }
+          # Un dossier dans le partage est refusé
+          code=$(curl -s -o refus.json -w '%{http_code}' -X PUT -H 'Content-Type: application/json' \
+            -d "{\"folder\": \"$(cygpath -w "$PWD/partage/perso" | sed 's/\\/\\\\/g')\"}" http://127.0.0.1:8597/api/settings/install)
+          cat refus.json; echo
+          test "$code" = 409 || { echo "::error::Dossier dans le partage accepté"; exit 1; }
+          # Installation
+          un='C:\\sd-poste-1'
+          curl -sf -X PUT -H 'Content-Type: application/json' -d "{\"folder\": \"$un\"}" http://127.0.0.1:8597/api/settings/install
+          echo; sleep 4; attendre || { echo "::error::Pas de redémarrage après installation"; exit 1; }
+          test -f /c/sd-poste-1/StudioDock.exe || { echo "::error::Exe non copié"; exit 1; }
+          echo "Processus : $(chemin_exe)"
+          chemin_exe | grep -qi 'sd-poste-1' || { echo "::error::Studio Dock ne tourne pas depuis le dossier choisi"; exit 1; }
+          curl -sf http://127.0.0.1:8597/api/apps | grep -q '"needsInstall":false' || { echo "::error::Toujours à installer"; exit 1; }
+          curl -sf http://127.0.0.1:8597/api/settings | grep -q 'partage' || { echo "::error::Dossier partagé non retenu"; exit 1; }
+          ls "$APPDATA/Microsoft/Windows/Start Menu/Programs/" | grep -q 'Studio Dock' && echo "Raccourci créé" || echo "::warning::Raccourci du menu Démarrer non créé"
+          # Déplacement avec une app installée
+          mkdir -p /c/sd-poste-1/apps/specgen && echo test > /c/sd-poste-1/apps/specgen/SpecGenerator-1.0.0.exe
+          deux='C:\\sd-poste-2'
+          curl -sf -X PUT -H 'Content-Type: application/json' -d "{\"folder\": \"$deux\"}" http://127.0.0.1:8597/api/settings/install
+          echo; sleep 4; attendre || { echo "::error::Pas de redémarrage après déplacement"; exit 1; }
+          test -f /c/sd-poste-2/apps/specgen/SpecGenerator-1.0.0.exe || { echo "::error::Apps non déplacées"; exit 1; }
+          for i in $(seq 30); do test -e /c/sd-poste-1/StudioDock.exe || break; sleep 1; done
+          test ! -e /c/sd-poste-1/StudioDock.exe || { echo "::error::Ancien dossier non vidé"; exit 1; }
+          echo "Processus : $(chemin_exe)"
+          # Relancer l'exe du partage ouvre la copie installée
+          powershell -NoProfile -Command "Stop-Process -Name StudioDock -Force"; sleep 2
+          ./partage/StudioDock/StudioDock.exe --port 8597 --browser &
+          sleep 8; echo "Processus : $(chemin_exe)"
+          chemin_exe | grep -qi 'sd-poste-2' || { echo "::error::L'exe du partage n'a pas ouvert la copie installée"; exit 1; }
+          powershell -NoProfile -Command "Stop-Process -Name StudioDock -Force"
+
+      - name: Journal de Studio Dock (en cas d'échec)
+        if: failure()
+        run: tail -n 60 "$LOCALAPPDATA/StudioDock/logs/studiodock.log" 2>/dev/null || echo "Pas de journal"
+
       - name: Vérification de la fenêtre (WebView2)
         # Indicatif : la machine de GitHub n'a pas d'utilisateur connecté, la fenêtre peut y échouer
         continue-on-error: true
@@ -100,10 +145,9 @@ jobs:
         run: |
           name="StudioDock-${{ steps.version.outputs.version }}.exe"
           cp dist/StudioDock.exe "dist/$name"
-          # Zip prêt à copier : l'exe, son dossier apps\ vide et l'historique des versions.
+          # Zip : l'exe et l'historique des versions ; au premier lancement, Studio Dock demande où s'installer.
           base="StudioDock-${{ steps.version.outputs.version }}-windows"
-          mkdir -p "dist/zip/$base/apps"
+          mkdir -p "dist/zip/$base"
           cp dist/StudioDock.exe CHANGELOG.md "dist/zip/$base/"
-          printf 'Déposez ici les exe des apps, un dossier par app (ex. apps\\specgen\\SpecGenerator-1.1.0.exe).\r\n' > "dist/zip/$base/apps/LISEZMOI.txt"
           (cd dist/zip && python -m zipfile -c "../$base.zip" "$base")
           gh release upload "${{ github.event.release.tag_name }}" "dist/$name" "dist/$base.zip" --clobber

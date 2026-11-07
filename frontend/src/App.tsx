@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActionError, api } from './api';
+import { InstallScreen, Restarting } from './install';
 import { AppPage, Home, SettingsPage } from './screens';
 import type { DockApp, DockState } from './types';
 import { Actions, Header, IconAlert, IconDownload, PlatformContext, TeamContext } from './ui';
@@ -72,6 +73,7 @@ export const App: React.FC = () => {
   };
 
   const [restarting, setRestarting] = React.useState(false);
+  const [moving, setMoving] = React.useState<string | null>(null);
   const updateDock = () => run(null, async () => {
     const r = await api.updateDock();
     if (r.restarting) setRestarting(true);
@@ -98,7 +100,8 @@ export const App: React.FC = () => {
             Studio Dock redémarre avec la nouvelle version…
           </div>
         )}
-        {state?.dock.update && !restarting && (
+        {moving && !state?.needsInstall && <Restarting folder={moving} />}
+        {state?.dock.update && !restarting && !state.needsInstall && (
           <div className="flex flex-wrap items-center gap-3 rounded-md border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning-text">
             <IconDownload className="shrink-0" />
             <span className="flex-grow">Studio Dock {state.dock.update} est disponible dans le dossier partagé.</span>
@@ -122,8 +125,10 @@ export const App: React.FC = () => {
             </span>
           </div>
         )}
-        {settingsRoute ? (
-          <SettingsPage onSaved={refresh} openFolder={(name) => run(null, () => api.openFolder(name))} />
+        {state?.needsInstall && !settingsRoute ? (
+          <InstallScreen onRestart={setMoving} restartingIn={moving} />
+        ) : settingsRoute ? (
+          <SettingsPage onSaved={refresh} openFolder={(name) => run(null, () => api.openFolder(name))} onRestart={setMoving} />
         ) : !state ? (
           <p className="text-ink-muted">Chargement…</p>
         ) : appId ? (
@@ -141,7 +146,7 @@ export const App: React.FC = () => {
           <span>Studio Dock {state ? `v${state.version}` : ''}</span>
           <span>Les apps web s'arrêtent quand vous fermez Studio Dock.</span>
           <span className="ml-auto flex gap-4">
-            <button type="button" onClick={() => run(null, () => api.openFolder('home'))} className="border-0 bg-transparent p-0 text-accent hover:underline">Dossier de Studio Dock</button>
+            <button type="button" onClick={() => run(null, () => api.openFolder('home'))} className="border-0 bg-transparent p-0 text-accent hover:underline">Dossier d'installation</button>
             <button type="button" onClick={() => actions.logs()} className="border-0 bg-transparent p-0 text-accent hover:underline">Journaux</button>
           </span>
         </div>

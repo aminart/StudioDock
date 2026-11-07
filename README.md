@@ -39,24 +39,40 @@ les **copie sur le poste** de chacun : les apps ne sont jamais lancées depuis l
 | `mode` | `auto` : installée d'office chez tout le monde, ne peut pas être retirée ; `optionnel` (défaut) : chacun l'installe s'il veut ; `masque` : retirée de la liste. |
 | `studiodock.source` *(à la racine)* | Sous-dossier des versions de Studio Dock (défaut : `StudioDock`). |
 
-**Réglage du dossier partagé** : écran Réglages de Studio Dock (bouton « Choisir… » ou chemin saisi). Pour éviter ce
-réglage à chacun, posez à côté de `StudioDock.exe` un fichier `studiodock.config.json` :
+### Deux dossiers distincts
+
+| | Dossier partagé de l'équipe | Dossier d'installation |
+|---|---|---|
+| Qui le choisit | vous (un seul pour l'équipe) | chaque membre, sur son poste |
+| Contenu | catalogue, icônes, exe déposés par vous | `StudioDock.exe` et `apps\<id>\` : les programmes copiés |
+| Rôle | dépôt des versions ; rien n'y est lancé | Studio Dock et les apps sont lancés d'ici |
+
+**Installation chez un membre (Windows)** : il ouvre `StudioDock.exe` depuis le sous-dossier `StudioDock\` du partage
+(ou après l'avoir téléchargé). Studio Dock demande **dans quel dossier de son poste l'installer** — celui autorisé par
+l'entreprise —, s'y copie, ajoute un raccourci « Studio Dock » au menu Démarrer et redémarre depuis ce dossier.
+Ouvert depuis le partage, il retient aussi ce dossier partagé : rien d'autre à régler. Ensuite, rouvrir l'exe du
+partage lance simplement la copie installée. Le dossier se change dans Réglages (« Changer de dossier ») : Studio Dock
+et les apps installées y sont déplacés. Un dossier réseau ou situé dans le partage est refusé.
+
+**Réglages préparés** : un fichier `studiodock.config.json` posé à côté de `StudioDock.exe` dans le partage pré-remplit
+les réglages de chacun :
 
 ```json
-{ "shared_folder": "\\\\serveur\\Equipe UX" }
+{ "shared_folder": "\\\\serveur\\Equipe UX", "install_folder": "C:\\Users\\%USERNAME%\\Apps\\StudioDock" }
 ```
 
-Le chemin accepte les variables (`%USERNAME%`, `$HOME`). Sans dossier partagé, Studio Dock utilise la liste locale
-`apps.json` (ci-dessous).
+`install_folder` est seulement **proposé** : chacun confirme (ou change) au premier lancement. Les chemins acceptent
+les variables (`%USERNAME%`, `$HOME`). Le dossier partagé se règle aussi dans Réglages. Sans dossier partagé, Studio
+Dock utilise la liste locale `apps.json` (ci-dessous).
 
-**Installation sur le poste** : chacun copie `StudioDock.exe` (avec `studiodock.config.json`) une fois dans le dossier
-local autorisé par l'entreprise et le lance. Les apps sont installées dans `apps\<id>\` à côté de lui.
+Les réglages de chacun sont dans `%LOCALAPPDATA%\StudioDock\config.json` (journaux dans `logs\`), hors du dossier
+d'installation.
 
 ## Installation sans dossier partagé
 
-1. Télécharger `StudioDock-X.Y.Z-windows.zip` depuis la dernière release (ou `StudioDock-X.Y.Z.exe` seul).
-2. Le décompresser dans un dossier, par exemple `Documents\Studio Dock`.
-3. Déposer l'exe de chaque app web dans `apps\<id>\` :
+1. Télécharger `StudioDock-X.Y.Z.exe` depuis la dernière release (ou le zip) et l'ouvrir.
+2. Choisir le dossier d'installation proposé au premier lancement, par exemple `Documents\Studio Dock`.
+3. Déposer l'exe de chaque app web dans `apps\<id>\` de ce dossier (bouton « Ouvrir le dossier » de chaque carte) :
 
 ```
 Studio Dock\
@@ -73,7 +89,7 @@ Un dossier par app : chaque app lit le `.env` posé à côté de son exe. Plusie
 (`SpecGenerator-1.1.0.exe`, `SpecGenerator-1.2.0.exe`) : la plus récente est lancée.
 Les apps de bureau (Mapline) s'installent normalement : Studio Dock les retrouve dans « Applications installées ».
 
-4. Double-cliquer sur `StudioDock.exe`.
+4. Lancer Studio Dock depuis le menu Démarrer.
 
 La fenêtre utilise le moteur Edge WebView2, présent sur Windows 10 et 11. Les exe ne sont pas signés : au premier
 lancement, Windows peut demander « Informations complémentaires » puis « Exécuter quand même ».

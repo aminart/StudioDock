@@ -6,6 +6,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ### Ajouté
 
+- Windows : dossier d'installation choisi par chaque membre, distinct du dossier partagé. Au premier lancement, Studio
+  Dock demande où s'installer, s'y copie, ajoute un raccourci au menu Démarrer et redémarre depuis ce dossier ; les apps
+  y sont installées dans `apps\<id>\`. Ouvert depuis le partage, il retient le dossier partagé. Réglages : « Changer de
+  dossier » déplace Studio Dock et les apps. Dossier réseau ou dans le partage refusé. `install_folder` dans
+  `studiodock.config.json` propose un dossier par défaut.
 - Nouvelles icônes de la suite : Studio Dock (exe Windows, app Mac, en-tête, onglet) et icônes des apps du
   catalogue (SpecGen sarcelle, AuditErgo vert, DocAnalyser violet, Mapline bleu), en tuiles pleines (`style: logo`).
   Script `scripts/fabriquer_icones.py` pour régénérer les `.ico` et `.icns`.
@@ -26,3 +31,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
   (Windows) ; sur Mac, ouverture du dossier.
 - Version Mac : « Studio Dock.app » pour Mac Intel et Mac à puce Apple (macOS 12 et plus), dossier dans
   `~/Library/Application Support/StudioDock` ; applications Mac retrouvées dans Applications.
+
+### Corrigé
+
+- Exe Windows : lecture de la version d'un exe sans numéro dans son nom (la liste des apps renvoyait une erreur dès
+  qu'un tel exe était dans le dossier partagé).

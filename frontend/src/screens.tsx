@@ -1,5 +1,6 @@
 import React from 'react';
 import { api } from './api';
+import { InstallFolderForm } from './install';
 import type { DockApp, DockState, Settings } from './types';
 import {
   Actions, AppActions, AppIcon, AppNotice, IconAlert, IconBack, IconChevron, IconDownload, IconFolder, IconSpinner,
@@ -283,7 +284,7 @@ export const AppPage: React.FC<{ app: DockApp; actions: Actions; pending: boolea
 
 /* ---------- Réglages ---------- */
 
-export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'home' | 'shared') => void }> = ({ onSaved, openFolder }) => {
+export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'home' | 'shared') => void; onRestart: (folder: string) => void }> = ({ onSaved, openFolder, onRestart }) => {
   const platform = React.useContext(PlatformContext);
   const [settings, setSettings] = React.useState<Settings | null>(null);
   const [value, setValue] = React.useState('');
@@ -332,7 +333,7 @@ export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'h
       </a>
       <div className="flex flex-col gap-1.5">
         <h1 className="m-0 text-[30px] font-bold leading-tight text-ink">Réglages</h1>
-        <p className="m-0 max-w-[680px] text-ink-muted">Où Studio Dock trouve les applications de l'équipe, et où il les installe sur ce poste.</p>
+        <p className="m-0 max-w-[680px] text-ink-muted">Où Studio Dock trouve les applications de l'équipe (dossier partagé), et où il les installe sur ce poste (votre dossier).</p>
       </div>
 
       <section className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
@@ -374,22 +375,74 @@ export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'h
         )}
       </section>
 
+      <InstallSection settings={settings} platform={platform} openHome={() => openFolder('home')} onRestart={onRestart} />
+    </div>
+  );
+};
+
+/* ---------- Dossier d'installation ---------- */
+
+const InstallSection: React.FC<{
+  settings: Settings | null;
+  platform: 'windows' | 'mac' | 'linux';
+  openHome: () => void;
+  onRestart: (folder: string) => void;
+}> = ({ settings, platform, openHome, onRestart }) => {
+  const [editing, setEditing] = React.useState(false);
+  const install = settings?.install;
+  const show = platform === 'mac' ? 'Afficher dans le Finder' : 'Afficher dans l\'Explorateur';
+
+  if (!install?.available) {
+    // Mac (ou développement) : emplacement fixe, affiché pour information
+    return (
       <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-6">
         <div className="flex flex-col gap-1">
-          <h2 className="m-0 text-[19px] font-bold text-ink">Installation sur ce poste</h2>
-          <p className="m-0 text-sm text-ink-muted">
-            Le dossier de Studio Dock : les applications y sont copiées (un dossier par app) et lancées depuis cet endroit.
-            Pour en changer, placez Studio Dock dans le dossier autorisé par votre entreprise.
-          </p>
+          <h2 className="m-0 text-[19px] font-bold text-ink">Emplacement des applications</h2>
+          <p className="m-0 text-sm text-ink-muted">Les applications installées depuis le dossier partagé sont copiées ici, une par dossier, et lancées depuis cet endroit.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <span className="min-w-0 flex-grow break-all rounded bg-surface-2 px-3.5 py-2.5 font-mono text-sm">{settings?.home ?? '…'}</span>
-          <button type="button" onClick={() => openFolder('home')}
+          <button type="button" onClick={openHome}
             className="flex h-10 items-center gap-2 rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body hover:bg-surface-3">
-            <IconFolder /> Ouvrir
+            <IconFolder /> {show}
           </button>
         </div>
       </section>
-    </div>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
+      <div className="flex flex-col gap-1">
+        <h2 className="m-0 text-[19px] font-bold text-ink">Votre dossier d'installation</h2>
+        <p className="m-0 text-sm text-ink-muted">
+          Le dossier de ce poste où sont installés Studio Dock et vos applications (une par dossier), et d'où elles sont lancées.
+          Propre à chaque membre de l'équipe, distinct du dossier partagé.
+        </p>
+      </div>
+      {!editing ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="min-w-0 flex-grow break-all rounded bg-surface-2 px-3.5 py-2.5 font-mono text-sm">{install.folder ?? '…'}</span>
+          <button type="button" onClick={openHome}
+            className="flex h-10 items-center gap-2 rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body hover:bg-surface-3">
+            <IconFolder /> {show}
+          </button>
+          <button type="button" onClick={() => setEditing(true)}
+            className="flex h-10 items-center gap-2 rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body hover:bg-surface-3">
+            Changer de dossier
+          </button>
+        </div>
+      ) : (
+        <>
+          <p className="m-0 flex items-start gap-2 rounded-md border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning-text">
+            <IconAlert className="mt-0.5 shrink-0" />
+            Studio Dock et vos applications installées seront déplacés dans le nouveau dossier, puis Studio Dock redémarrera.
+            Les applications lancées seront arrêtées.
+          </p>
+          <InstallFolderForm initial={install.folder ?? install.suggested} canChoose={!!settings?.canChooseFolder}
+            submitLabel="Déplacer ici" onRestart={onRestart} onCancel={() => setEditing(false)} current={install.folder} />
+        </>
+      )}
+    </section>
   );
 };

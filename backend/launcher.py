@@ -66,11 +66,20 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--version", action="version", version=f"{APP_NAME} {VERSION}")
     parser.add_argument("--check-window", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--after-update", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--cleanup", help=argparse.SUPPRESS)  # ancien dossier d'installation à vider
     args = parser.parse_args(argv)
     if args.home:
         os.environ["STUDIODOCK_HOME"] = str(Path(args.home).resolve())
 
-    from app import miseajour, winapi
+    from app import installation, miseajour, winapi
+
+    if installation.a_installer() and not args.after_update and not args.no_window:
+        # Exe ouvert hors du dossier d'installation (partage, Téléchargements) alors que Studio Dock est
+        # installé : c'est la copie installée qui démarre
+        installe = installation.copie_installee()
+        if installe is not None:
+            winapi.lancer_detache([str(installe), *(argv if argv is not None else sys.argv[1:])], cwd=installe.parent)
+            return
 
     if args.after_update:
         # Redémarrage après mise à jour : l'ancienne version libère le port en quittant
@@ -79,6 +88,8 @@ def main(argv: list[str] | None = None) -> None:
                 break
             time.sleep(0.2)
     miseajour.nettoyer_ancienne_version()
+    if args.cleanup:
+        threading.Thread(target=_vider_ancien_dossier, args=(Path(args.cleanup),), daemon=True).start()
 
     if _deja_lance(args.port) and not args.no_window:
         # Un seul Studio Dock à la fois : on rouvre l'interface de celui qui tourne
@@ -153,6 +164,18 @@ def main(argv: list[str] | None = None) -> None:
     finally:
         _arreter()
         fil.join(timeout=5)
+
+
+def _vider_ancien_dossier(ancien: Path) -> None:
+    """Après un changement de dossier d'installation : l'ancien exe se libère quand l'ancien Studio Dock quitte."""
+    from app import installation
+    from app.info import home_dir
+
+    for _ in range(30):
+        installation.nettoyer(ancien, home_dir())
+        if not (ancien / installation.EXE).exists():
+            return
+        time.sleep(1)
 
 
 def _ouvrir_quand_pret(url: str, port: int) -> None:

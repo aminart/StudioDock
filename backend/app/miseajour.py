@@ -41,7 +41,10 @@ def version_disponible(catalogue: Catalogue, partage: Path | None) -> Trouvee | 
 
 
 def remplacement_possible() -> bool:
-    return EMPAQUETE and winapi.IS_WIN
+    """Exe Windows lancé depuis son dossier d'installation (jamais la copie du dossier partagé)."""
+    from app import installation
+
+    return EMPAQUETE and winapi.IS_WIN and installation.est_installe()
 
 
 def nettoyer_ancienne_version() -> None:

@@ -33,6 +33,7 @@ export const api = {
   seen: (ids: string[]) => call<{ ok: boolean }>('POST', '/api/seen', { ids }),
   settings: () => call<Settings>('GET', '/api/settings'),
   saveSettings: (shared_folder: string) => call<Settings>('PUT', '/api/settings', { shared_folder }),
+  installDock: (folder: string) => call<{ ok: boolean; restarting: boolean; folder: string; shortcut: boolean }>('PUT', '/api/settings/install', { folder }),
   chooseFolder: () => call<{ path: string | null }>('POST', '/api/settings/choose-folder'),
   updateDock: () => call<{ ok: boolean; restarting: boolean }>('POST', '/api/dock/update'),
   openLink: (url: string) => call<{ ok: boolean }>('POST', '/api/open-link', { url }),
