@@ -8,6 +8,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ### Modifié
 
+- Bouton Réglages de l'en-tête : icône en roue crantée.
+
 - Refonte visuelle de l'accueil : cartes plus compactes (4 par ligne), phrase d'accroche sur deux lignes, état en
   langage courant (Ouverte, Prête, Mise à jour disponible, À installer), une seule action principale et un bouton de
   mise à jour à côté. L'app ouverte est encadrée. Pastilles de résumé en haut de page. Fiche, dossier et retrait
