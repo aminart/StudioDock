@@ -4,6 +4,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+## [0.3.0] — 2026-11-08
+
+### Modifié
+
+- Refonte visuelle de l'accueil : cartes plus compactes (4 par ligne), phrase d'accroche sur deux lignes, état en
+  langage courant (Ouverte, Prête, Mise à jour disponible, À installer), une seule action principale et un bouton de
+  mise à jour à côté. L'app ouverte est encadrée. Pastilles de résumé en haut de page. Fiche, dossier et retrait
+  dans le menu ⋮ de chaque carte.
+- Fiche d'une app : bandeau avec pastille d'état, fonctionnalités en blocs, encart « En bref » en langage simple,
+  détails techniques (adresse, emplacement, journaux) repliés.
+- Logo de l'en-tête contouré pour rester visible sur fond blanc.
+
 ## [0.2.0] — 2026-11-07
 
 ### Ajouté

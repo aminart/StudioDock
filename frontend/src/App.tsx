@@ -89,7 +89,7 @@ export const App: React.FC = () => {
     <TeamContext.Provider value={team}>
     <div className="flex min-h-screen flex-col bg-bg font-sans text-[15px] leading-normal text-ink-body">
       <Header />
-      <main className="mx-auto box-border flex w-full max-w-[1120px] flex-grow flex-col gap-6 px-6 pb-8 pt-10">
+      <main className="mx-auto box-border flex w-full max-w-[1200px] flex-grow flex-col gap-6 px-6 pb-8 pt-10">
         {offline && (
           <div role="alert" className="flex items-center gap-2 rounded-md bg-danger-soft px-4 py-3 text-sm text-danger-text">
             <IconAlert /> Studio Dock ne répond plus. Relancez-le.
@@ -141,7 +141,7 @@ export const App: React.FC = () => {
           <Home state={state} actions={actions} pending={pending} />
         )}
       </main>
-      <footer className="mx-auto box-border w-full max-w-[1120px] px-6 pb-6">
+      <footer className="mx-auto box-border w-full max-w-[1200px] px-6 pb-6">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-line pt-4 text-[13px] text-ink-subtle">
           <span>Studio Dock {state ? `v${state.version}` : ''}</span>
           <span>Les apps web s'arrêtent quand vous fermez Studio Dock.</span>

@@ -19,6 +19,8 @@ export const IconStop = ({ size = 14, className }: IconProps) => (
     <rect x="6" y="6" width="12" height="12" rx="2" />
   </svg>
 );
+export const IconRefresh = ({ size = 16, className }: IconProps) =>
+  stroke(size, className, <><path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><path d="M21 3v5h-5" /></>);
 export const IconExternal = ({ size = 16, className }: IconProps) =>
   stroke(size, className, <><path d="M14 4h6v6" /><path d="M20 4l-9 9" /><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></>);
 export const IconWindow = ({ size = 16, className }: IconProps) =>
@@ -38,7 +40,10 @@ export const IconSpinner = ({ size = 16 }: IconProps) => (
   </svg>
 );
 export const DockLogo = ({ size = 36 }: { size?: number }) => (
-  <img src={logoDock} alt="" width={size} height={size} className="block shrink-0" />
+  <span className="block shrink-0 shadow-[0_0_0_1px_var(--nn-line-strong),0_4px_10px_-4px_rgba(15,29,150,0.35)]"
+    style={{ width: size, height: size, borderRadius: Math.round(size / 4) }}>
+    <img src={logoDock} alt="" width={size} height={size} className="block" />
+  </span>
 );
 
 /* ---------- Thème ---------- */
@@ -76,10 +81,10 @@ export const ThemeToggle: React.FC = () => {
 
 export const Header: React.FC = () => (
   <header className="border-b border-line bg-surface">
-    <div className="mx-auto flex max-w-[1120px] items-center gap-4 px-6 py-3.5">
+    <div className="mx-auto flex min-h-[72px] max-w-[1200px] items-center gap-3 px-6">
       <a href="#/" className="flex flex-grow items-center gap-3 no-underline">
         <DockLogo />
-        <span className="text-[17px] font-bold leading-tight text-ink">Studio Dock</span>
+        <span className="text-lg font-bold leading-tight text-ink">Studio Dock</span>
       </a>
       <a href="#/reglages" aria-label="Réglages de Studio Dock" title="Réglages"
         className="flex h-10 items-center gap-2 rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body no-underline hover:bg-surface-3">
@@ -112,30 +117,48 @@ export const AppIcon: React.FC<{ app: DockApp; size: number }> = ({ app, size })
   );
 };
 
-const statusText = (app: DockApp): string => {
+/** État d'une app en langage courant (les détails techniques sont dans la fiche). */
+export const statusText = (app: DockApp): string => {
+  if (app.progress !== null) return app.installed ? `Mise à jour… ${app.progress} %` : `Installation… ${app.progress} %`;
   switch (app.state) {
-    case 'on': return 'En cours';
+    case 'on': return app.external ? 'Ouverte hors de Studio Dock' : 'Ouverte';
     case 'starting': return 'Démarrage…';
-    case 'off': return 'Arrêtée';
-    case 'missing': return app.progress !== null ? `Installation… ${app.progress} %` : app.kind === 'native' || app.availableVersion ? 'Non installée' : 'Introuvable';
-    case 'error': return app.error?.code === 'port_busy' ? 'Impossible de lancer' : 'Erreur';
+    case 'off': return app.update ? 'Mise à jour disponible' : 'Prête';
+    case 'missing': return app.availableVersion || app.kind === 'native' ? 'À installer' : 'Introuvable';
+    case 'error': return app.error?.code === 'port_busy' ? 'Impossible de lancer' : 'Erreur au lancement';
   }
 };
 
 const dotClass = (app: DockApp) =>
-  app.state === 'on' ? 'bg-success' : app.state === 'starting' ? 'bg-warning' : app.state === 'error' ? 'bg-danger' : 'bg-line-dashed';
+  app.state === 'on' ? 'bg-success'
+    : app.state === 'starting' || app.progress !== null ? 'bg-warning'
+      : app.state === 'error' ? 'bg-danger'
+        : app.update ? 'bg-accent' : 'bg-line-dashed';
 const statusClass = (app: DockApp) =>
-  app.state === 'on' ? 'text-success-text' : app.state === 'starting' ? 'text-warning-text' : app.state === 'error' ? 'text-danger-text' : 'text-ink-subtle';
+  app.state === 'on' ? 'text-success-text'
+    : app.state === 'starting' || app.progress !== null ? 'text-warning-text'
+      : app.state === 'error' ? 'text-danger-text'
+        : app.update ? 'text-accent-ink' : 'text-ink-subtle';
 
 export const where = (app: DockApp) => (app.kind === 'web' ? `localhost:${app.port}` : 'Application de bureau');
 
 export const StatusLine: React.FC<{ app: DockApp }> = ({ app }) => (
-  <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink-subtle">
+  <div className="flex min-w-0 items-center gap-2 text-[13px]">
     <span className={`h-2 w-2 shrink-0 rounded-full ${dotClass(app)}`} aria-hidden="true" />
-    <span className={`whitespace-nowrap font-medium ${statusClass(app)}`}>{statusText(app)}</span>
-    <span className="clamp-1 font-mono">· {where(app)}{app.external && app.state === 'on' ? ' · lancée hors de Studio Dock' : ''}</span>
+    <span className={`clamp-1 font-medium ${statusClass(app)}`}>{statusText(app)}</span>
   </div>
 );
+
+/** Pastille d'état (fiche d'une app). */
+export const StatusChip: React.FC<{ app: DockApp }> = ({ app }) => {
+  const on = app.state === 'on';
+  return (
+    <span className={`inline-flex h-7 items-center gap-2 rounded-full px-3 text-[13px] font-medium ${on ? 'bg-success-soft text-success-text' : 'border border-line bg-surface-2'}`}>
+      <span className={`h-2 w-2 rounded-full ${dotClass(app)}`} aria-hidden="true" />
+      <span className={on ? '' : statusClass(app)}>{statusText(app)}</span>
+    </span>
+  );
+};
 
 export type Actions = {
   launch: (app: DockApp) => void;
@@ -152,6 +175,17 @@ export type Actions = {
 const btnPrimary = 'flex h-11 items-center justify-center gap-2 rounded border-0 bg-primary px-5 font-medium text-primary-on hover:bg-primary-hover disabled:cursor-default disabled:opacity-60 disabled:hover:bg-primary';
 const btnInk = 'flex h-11 min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded border-0 bg-ink px-5 font-medium text-surface hover:opacity-90';
 const btnGhost = 'flex h-11 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded border border-line-strong bg-surface px-4 font-medium text-ink-body hover:bg-surface-3';
+
+/** Petit bouton « mettre à jour » à côté de l'action principale d'une carte. */
+export const UpdateButton: React.FC<{ app: DockApp; actions: Actions }> = ({ app, actions }) =>
+  !app.update || app.progress !== null || app.state === 'starting' ? null : (
+    <button type="button" onClick={() => actions.install(app)}
+      aria-label={`Mettre à jour ${app.name} en version ${app.availableVersion}${app.state === 'on' ? ' (l\'app sera arrêtée)' : ''}`}
+      title={`Mettre à jour en ${app.availableVersion}`}
+      className="flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded border border-line-strong bg-surface px-3 text-sm font-medium text-accent-ink hover:bg-surface-3">
+      <IconRefresh /> {app.availableVersion}
+    </button>
+  );
 
 export const ProgressBar: React.FC<{ app: DockApp }> = ({ app }) =>
   app.progress === null ? null : (
@@ -172,7 +206,7 @@ export const UpdateBanner: React.FC<{ app: DockApp; actions: Actions }> = ({ app
   );
 
 /** Message sous la carte : app introuvable, copie impossible ou erreur au lancement. */
-export const AppNotice: React.FC<{ app: DockApp; actions: Actions }> = ({ app, actions }) => {
+export const AppNotice: React.FC<{ app: DockApp; actions: Actions; compact?: boolean }> = ({ app, actions, compact }) => {
   const platform = React.useContext(PlatformContext);
   const team = React.useContext(TeamContext);
   if (app.installError) {
@@ -201,6 +235,7 @@ export const AppNotice: React.FC<{ app: DockApp; actions: Actions }> = ({ app, a
       </div>
     );
   }
+  if (compact) return null; // carte : les explications sont dans la fiche
   if (app.state === 'missing' && team && app.progress === null && !app.availableVersion) {
     return (
       <div className="flex items-start gap-2 rounded-md border border-line bg-surface-2 px-3 py-2 text-[13px] text-ink-muted">
@@ -227,7 +262,7 @@ export const AppNotice: React.FC<{ app: DockApp; actions: Actions }> = ({ app, a
 /** Boutons selon l'état et le type d'app. */
 export const AppActions: React.FC<{ app: DockApp; actions: Actions; pending: boolean; wide?: boolean }> = ({ app, actions, pending, wide }) => {
   const team = React.useContext(TeamContext);
-  const fill = wide ? 'min-w-[170px]' : 'w-full';
+  const fill = wide ? 'min-w-[170px]' : 'min-w-0 flex-1';
   if (app.progress !== null) {
     return (
       <button type="button" disabled className={`${btnPrimary} ${fill}`}>
@@ -244,13 +279,20 @@ export const AppActions: React.FC<{ app: DockApp; actions: Actions; pending: boo
   }
   if (app.state === 'on' && app.kind === 'web') {
     return (
-      <div className={`flex gap-2.5 ${wide ? '' : 'w-full'}`}>
+      <div className={`flex gap-2 ${wide ? '' : 'min-w-0 flex-1'}`}>
         <button type="button" onClick={() => actions.open(app)} className={btnInk} aria-label={`Ouvrir ${app.name} dans le navigateur`}>
-          Ouvrir <IconExternal />
+          <IconExternal /> Ouvrir
         </button>
-        <button type="button" onClick={() => actions.stop(app)} className={`${btnGhost} flex-1`}>
-          <IconStop /> Arrêter
-        </button>
+        {wide ? (
+          <button type="button" onClick={() => actions.stop(app)} className={`${btnGhost} flex-1`}>
+            <IconStop /> Arrêter
+          </button>
+        ) : (
+          <button type="button" onClick={() => actions.stop(app)} aria-label={`Arrêter ${app.name}`} title="Arrêter"
+            className={`${btnGhost} w-11 shrink-0 px-0`}>
+            <IconStop size={16} />
+          </button>
+        )}
       </div>
     );
   }
