@@ -4,11 +4,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+### Modifié
+
+- Bouton Réglages de l'en-tête : icône en roue crantée.
+
 ## [0.3.0] — 2026-11-08
 
 ### Modifié
 
-- Bouton Réglages de l'en-tête : icône en roue crantée.
 
 - Refonte visuelle de l'accueil : cartes plus compactes (4 par ligne), phrase d'accroche sur deux lignes, état en
   langage courant (Ouverte, Prête, Mise à jour disponible, À installer), une seule action principale et un bouton de
