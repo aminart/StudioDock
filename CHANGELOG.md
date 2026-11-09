@@ -4,6 +4,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+## [0.4.1] — 2026-11-09
+
+### Corrigé
+
+- Catalogue en ligne : une app pouvait être installée à partir d'un fichier encore en cours d'écriture (copie par
+  l'Explorateur, qui garde la date d'origine), d'où « Could not load PyInstaller's embedded PKG archive » au
+  lancement. Studio Dock attend désormais que plus aucun programme n'écrive dans le fichier, vérifie que la copie est
+  complète, et contrôle la taille et l'empreinte (SHA-256) du fichier publié, ajoutées au catalogue par « Fabriquer
+  le catalogue ». Un fichier incomplet ou différent est signalé sur la carte et n'est pas installé.
+
 ## [0.4.0] — 2026-11-09
 
 ### Ajouté

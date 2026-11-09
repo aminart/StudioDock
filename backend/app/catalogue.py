@@ -67,6 +67,8 @@ class AppEntry(BaseModel):
     icon: Icone = Field(default_factory=Icone)
     version: str | None = None  # catalogue en ligne : dernière version publiée
     link: str | None = None  # catalogue en ligne : lien du dossier en ligne de l'app (SharePoint…)
+    size: int | None = None  # catalogue en ligne : taille du fichier publié (contrôle du téléchargement)
+    sha256: str | None = None  # catalogue en ligne : empreinte du fichier publié
 
     @field_validator("exe")
     @classmethod
@@ -91,6 +93,8 @@ class DockConf(BaseModel):
     source: str = "StudioDock"  # sous-dossier du partage où sont déposées les versions de Studio Dock
     version: str | None = None  # catalogue en ligne : dernière version publiée de Studio Dock
     link: str | None = None  # catalogue en ligne : lien de son dossier en ligne
+    size: int | None = None
+    sha256: str | None = None
 
 
 class Catalogue(BaseModel):
