@@ -7,7 +7,7 @@ name: Build Mac app
 #   sont joints à la release. Le tag doit correspondre au fichier VERSION.
 
 on:
-  push:
+  # Builds seulement pour une release (ou à la main, onglet Actions) : économise les minutes GitHub Actions.
   workflow_dispatch:
   release:
     types: [published]

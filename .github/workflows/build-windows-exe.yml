@@ -6,7 +6,7 @@ name: Build Windows exe
 #   (StudioDock-X.Y.Z.exe, StudioDock-X.Y.Z-windows.zip). Le tag doit correspondre au fichier VERSION.
 
 on:
-  push:
+  # Builds seulement pour une release (ou à la main, onglet Actions) : économise les minutes GitHub Actions.
   workflow_dispatch:
   release:
     types: [published]
