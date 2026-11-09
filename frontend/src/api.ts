@@ -1,4 +1,4 @@
-import type { DockApp, DockState, Settings } from './types';
+import type { DockApp, DockState, PrepareState, Settings } from './types';
 
 export class ActionError extends Error {}
 
@@ -33,8 +33,16 @@ export const api = {
   seen: (ids: string[]) => call<{ ok: boolean }>('POST', '/api/seen', { ids }),
   settings: () => call<Settings>('GET', '/api/settings'),
   saveSettings: (shared_folder: string) => call<Settings>('PUT', '/api/settings', { shared_folder }),
+  saveCatalogueLink: (catalogue_link: string) => call<Settings>('PUT', '/api/settings', { catalogue_link }),
+  cancelDownload: (id: string) => call<DockApp>('POST', `/api/apps/${id}/cancel-download`),
+  checkCatalogue: () => call<{ ok: boolean }>('POST', '/api/catalogue/check'),
+  cancelCatalogue: () => call<{ ok: boolean }>('POST', '/api/catalogue/cancel'),
+  prepare: (folder: string) => call<PrepareState>('POST', '/api/admin/catalogue', { folder }),
+  build: (body: { folder: string; links: Record<string, string>; studiodockLink: string; catalogueLink: string }) =>
+    call<PrepareState>('POST', '/api/admin/catalogue/build', body),
+  showPrepare: (folder: string) => call<{ ok: boolean }>('POST', '/api/admin/catalogue/show', { folder }),
   installDock: (folder: string) => call<{ ok: boolean; restarting: boolean; folder: string; shortcut: boolean }>('PUT', '/api/settings/install', { folder }),
   chooseFolder: () => call<{ path: string | null }>('POST', '/api/settings/choose-folder'),
-  updateDock: () => call<{ ok: boolean; restarting: boolean }>('POST', '/api/dock/update'),
+  updateDock: () => call<{ ok: boolean; restarting: boolean; waiting?: boolean }>('POST', '/api/dock/update'),
   openLink: (url: string) => call<{ ok: boolean }>('POST', '/api/open-link', { url }),
 };

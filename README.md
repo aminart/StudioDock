@@ -68,6 +68,41 @@ Dock utilise la liste locale `apps.json` (ci-dessous).
 Les réglages de chacun sont dans `%LOCALAPPDATA%\StudioDock\config.json` (journaux dans `logs\`), hors du dossier
 d'installation.
 
+## Pour une équipe : dossier en ligne (SharePoint, Teams)
+
+Quand le dossier de l'équipe n'existe qu'en ligne, protégé par la connexion de l'entreprise, et ne peut pas être
+synchronisé sur les postes : **le navigateur télécharge, Studio Dock installe**. Studio Dock ne se connecte jamais au
+site : il ouvre les bons liens dans le navigateur (la connexion de l'entreprise s'y fait toute seule), surveille le
+dossier Téléchargements, vérifie ce qui y arrive (nom attendu, téléchargement terminé), le copie dans le dossier
+d'installation puis le retire des Téléchargements. Rien n'est lancé depuis Téléchargements.
+
+**Côté administratrice**
+
+1. Gardez sur votre poste une **copie du dossier de l'équipe** (le kit) : `catalogue.json`, `icons/`, un
+   sous-dossier par app avec son exe, et `StudioDock/`.
+2. Mettez en ligne les sous-dossiers et leurs exe. Pour chaque dossier en ligne, « Copier le lien » avec l'accès
+   « Personnes de votre organisation ».
+3. Studio Dock → Réglages → **Préparer le catalogue** : choisissez votre copie locale ; Studio Dock lit la version de
+   chaque exe, vous collez les liens (un par app, celui de Studio Dock et celui du catalogue), puis **Fabriquer le
+   catalogue** : versions et liens sont écrits dans `catalogue.json` et `studio-dock-catalogue.zip` est créé à côté.
+4. Mettez en ligne `studio-dock-catalogue.zip`.
+
+À chaque nouvelle version : déposez l'exe en ligne (et dans votre copie), refaites « Fabriquer le catalogue » et
+remettez le zip en ligne.
+
+**Chez un membre**
+
+1. Il télécharge `StudioDock-x.y.z.exe` et `studio-dock-catalogue.zip`, **déplace l'exe dans le dossier autorisé**
+   par l'entreprise (seul geste manuel) et l'ouvre : Studio Dock propose « Installer ici » et reste dans ce dossier.
+2. Le catalogue présent dans Téléchargements est importé tout seul : les apps de l'équipe s'affichent.
+3. **Installer** une app ouvre son dossier en ligne ; il clique sur Télécharger ; Studio Dock l'installe dès qu'elle
+   arrive (la carte affiche « Téléchargement attendu… » en attendant).
+4. **Vérifier les mises à jour** ouvre le catalogue en ligne ; une fois téléchargé, les cartes indiquent les mises à
+   jour disponibles, installées de la même façon. Studio Dock lui-même se met à jour ainsi (bandeau en haut).
+
+Limites : chaque installation ou mise à jour demande un clic de téléchargement ; les nouvelles versions ne sont
+connues qu'après une vérification du catalogue ; les apps « imposées » ne s'installent pas toutes seules.
+
 ## Installation sans dossier partagé
 
 1. Télécharger `StudioDock-X.Y.Z.exe` depuis la dernière release (ou le zip) et l'ouvrir.

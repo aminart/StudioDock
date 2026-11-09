@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActionError, api } from './api';
 import { InstallScreen, Restarting } from './install';
+import { PreparePage } from './prepare';
 import { AppPage, Home, SettingsPage } from './screens';
 import type { DockApp, DockState } from './types';
 import { Actions, Header, IconAlert, IconDownload, PlatformContext, TeamContext } from './ui';
@@ -70,6 +71,11 @@ export const App: React.FC = () => {
     link: (url) => run(null, () => api.openLink(url)),
     install: (app) => run(null, async () => { await api.install(app.id); if (app.isNew) await api.seen([app.id]); }),
     uninstall: (app) => run(app, () => api.uninstall(app.id)),
+    cancelDownload: (app) => run(null, () => api.cancelDownload(app.id)),
+  };
+  const catalogue = {
+    check: () => run(null, () => api.checkCatalogue()),
+    cancel: () => run(null, () => api.cancelCatalogue()),
   };
 
   const [restarting, setRestarting] = React.useState(false);
@@ -81,6 +87,7 @@ export const App: React.FC = () => {
 
   const appId = route.startsWith('#/app/') ? decodeURIComponent(route.slice(6)) : null;
   const settingsRoute = route === '#/reglages';
+  const prepareRoute = route === '#/catalogue';
   const team = !!state && state.source !== 'local';
   const current = appId ? state?.apps.find((a) => a.id === appId) : undefined;
 
@@ -104,10 +111,25 @@ export const App: React.FC = () => {
         {state?.dock.update && !restarting && !state.needsInstall && (
           <div className="flex flex-wrap items-center gap-3 rounded-md border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning-text">
             <IconDownload className="shrink-0" />
-            <span className="flex-grow">Studio Dock {state.dock.update} est disponible dans le dossier partagé.</span>
-            <button type="button" onClick={updateDock} className="border-0 bg-transparent p-0 font-medium text-warning-text underline">
-              {state.dock.canUpdate ? 'Mettre à jour et redémarrer' : 'Ouvrir le dossier'}
-            </button>
+            {state.source === 'online' ? (
+              state.dock.waiting ? (
+                <span className="flex-grow">Téléchargez Studio Dock {state.dock.update} dans la page qui s'est ouverte : il se mettra à jour et redémarrera tout seul.</span>
+              ) : (
+                <>
+                  <span className="flex-grow">Studio Dock {state.dock.update} est disponible.</span>
+                  <button type="button" onClick={updateDock} className="border-0 bg-transparent p-0 font-medium text-warning-text underline">
+                    {state.dock.canUpdate ? 'Télécharger la mise à jour' : 'Ouvrir la page de téléchargement'}
+                  </button>
+                </>
+              )
+            ) : (
+              <>
+                <span className="flex-grow">Studio Dock {state.dock.update} est disponible dans le dossier partagé.</span>
+                <button type="button" onClick={updateDock} className="border-0 bg-transparent p-0 font-medium text-warning-text underline">
+                  {state.dock.canUpdate ? 'Mettre à jour et redémarrer' : 'Ouvrir le dossier'}
+                </button>
+              </>
+            )}
           </div>
         )}
         {state && state.source === 'cache' && (
@@ -127,6 +149,8 @@ export const App: React.FC = () => {
         )}
         {state?.needsInstall && !settingsRoute ? (
           <InstallScreen onRestart={setMoving} restartingIn={moving} />
+        ) : prepareRoute ? (
+          <PreparePage canChoose={!!state?.canChooseFolder} />
         ) : settingsRoute ? (
           <SettingsPage onSaved={refresh} openFolder={(name) => run(null, () => api.openFolder(name))} onRestart={setMoving} />
         ) : !state ? (
@@ -138,7 +162,7 @@ export const App: React.FC = () => {
             <p>Application inconnue. <a href="#/" className="text-accent">Retour à mes applications</a></p>
           )
         ) : (
-          <Home state={state} actions={actions} pending={pending} />
+          <Home state={state} actions={actions} pending={pending} catalogue={catalogue} />
         )}
       </main>
       <footer className="mx-auto box-border w-full max-w-[1200px] px-6 pb-6">

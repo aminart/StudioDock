@@ -119,3 +119,36 @@ def test_api_installation_windows(client, maison, tmp_path, monkeypatch):
     valeurs = reglages.locaux()
     assert Path(valeurs["install_folder"]) == poste
     assert Path(valeurs["shared_folder"]) == partage
+
+
+def test_exe_deja_dans_le_dossier_autorise_installe_sur_place(client, maison, tmp_path, monkeypatch):
+    """Premier lancement d'un exe déjà posé dans le dossier autorisé : il y reste, sans redémarrage."""
+    from app import main
+
+    dossier = tmp_path / "Apps" / "StudioDock"
+    exe = _exe(dossier)
+    monkeypatch.setattr(installation, "disponible", lambda: True)
+    monkeypatch.setattr(main, "exe_dir", lambda: exe.parent)
+    monkeypatch.setattr(installation, "exe_dir", lambda: exe.parent)
+    monkeypatch.setattr(main.sys, "executable", str(exe))
+    monkeypatch.setattr(installation, "creer_raccourci", lambda _exe: True)
+    relances = []
+    monkeypatch.setattr(installation, "redemarrer", lambda *a: relances.append(a))
+
+    etat = client.get("/api/settings").json()["install"]
+    assert Path(etat["suggested"]) == dossier
+    r = client.put("/api/settings/install", json={"folder": str(dossier)})
+    assert r.status_code == 200 and r.json()["restarting"] is False
+    assert not relances
+    assert client.get("/api/apps").json()["needsInstall"] is False
+
+
+def test_telechargements_jamais_propose(client, maison, monkeypatch):
+    from app import main
+
+    exe = _exe(maison / "Telechargements")
+    monkeypatch.setattr(installation, "disponible", lambda: True)
+    monkeypatch.setattr(installation, "exe_dir", lambda: exe.parent)
+    monkeypatch.setattr(main, "exe_dir", lambda: exe.parent)
+    assert Path(client.get("/api/settings").json()["install"]["suggested"]).name == "StudioDock"
+    assert "Telechargements" not in client.get("/api/settings").json()["install"]["suggested"]

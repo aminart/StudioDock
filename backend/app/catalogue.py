@@ -1,9 +1,12 @@
 """Liste des applications affichées par Studio Dock.
 
-Deux sources possibles :
+Trois sources possibles :
 - **catalogue d'équipe** : catalogue.json à la racine du dossier partagé (réglé dans Studio Dock). Chaque app y
   indique le sous-dossier du partage où sont déposées ses versions (« source »). Une copie est gardée sur le poste
   (catalogue.cache.json et cache/), utilisée quand le partage est inaccessible ;
+- **catalogue en ligne** : quand l'équipe n'a qu'un dossier en ligne (SharePoint…) que Studio Dock ne peut pas lire,
+  le catalogue est téléchargé avec le navigateur (studio-dock-catalogue.zip) et importé dans catalogue-en-ligne/.
+  Chaque app y indique sa dernière version (« version ») et le lien de son dossier en ligne (« link ») ;
 - **liste locale** : apps.json du dossier de Studio Dock, sans dossier partagé (créé au premier lancement à partir
   de resources/apps.default.json).
 
@@ -27,6 +30,7 @@ FICHIER = "apps.json"
 CATALOGUE_PARTAGE = "catalogue.json"
 COPIE_LOCALE = "catalogue.cache.json"
 DOSSIER_COPIES = "cache"
+DOSSIER_EN_LIGNE = "catalogue-en-ligne"  # catalogue en ligne importé (catalogue.json + icons/)
 
 
 class Icone(BaseModel):
@@ -61,6 +65,8 @@ class AppEntry(BaseModel):
     tutorial: list[Etape] = Field(default_factory=list)
     links: list[Lien] = Field(default_factory=list)
     icon: Icone = Field(default_factory=Icone)
+    version: str | None = None  # catalogue en ligne : dernière version publiée
+    link: str | None = None  # catalogue en ligne : lien du dossier en ligne de l'app (SharePoint…)
 
     @field_validator("exe")
     @classmethod
@@ -83,11 +89,15 @@ class AppEntry(BaseModel):
 
 class DockConf(BaseModel):
     source: str = "StudioDock"  # sous-dossier du partage où sont déposées les versions de Studio Dock
+    version: str | None = None  # catalogue en ligne : dernière version publiée de Studio Dock
+    link: str | None = None  # catalogue en ligne : lien de son dossier en ligne
 
 
 class Catalogue(BaseModel):
     apps: list[AppEntry] = Field(default_factory=list)
     studiodock: DockConf = Field(default_factory=DockConf)
+    link: str | None = None  # catalogue en ligne : lien du fichier studio-dock-catalogue.zip (ou de son dossier)
+    published: str | None = None  # catalogue en ligne : date de fabrication du zip (AAAA-MM-JJ HH:MM)
 
     @model_validator(mode="after")
     def _uniques(self) -> "Catalogue":
@@ -125,7 +135,7 @@ def partage_accessible(dossier: Path | None) -> bool:
 class Source:
     """Lit le catalogue (partage ou liste locale), le relit quand il change, garde la dernière version valide.
 
-    Attributs pour l'interface : `origine` (« shared », « cache » ou « local »), `erreur`, `partage`."""
+    Attributs pour l'interface : `origine` (« shared », « cache », « online » ou « local »), `erreur`, `partage`."""
 
     def __init__(self) -> None:
         self._verrou = threading.Lock()
@@ -142,6 +152,8 @@ class Source:
             return self.partage / CATALOGUE_PARTAGE
         if self.origine == "cache":
             return home_dir() / COPIE_LOCALE
+        if self.origine == "online":
+            return home_dir() / DOSSIER_EN_LIGNE / CATALOGUE_PARTAGE
         return home_dir() / FICHIER
 
     def _choisir_fichier(self) -> Path:
@@ -153,6 +165,9 @@ class Source:
                 self.origine = "cache"
             if self.origine == "cache" and not (home_dir() / COPIE_LOCALE).is_file():
                 self.origine = "shared"  # rien en copie : on signale l'absence du catalogue partagé
+            return self.chemin
+        if (home_dir() / DOSSIER_EN_LIGNE / CATALOGUE_PARTAGE).is_file():
+            self.origine = "online"
             return self.chemin
         self.origine = "local"
         if not self.chemin.exists():
@@ -211,7 +226,7 @@ def fichier_icone(app: AppEntry, partage: Path | None = None) -> Path | None:
     """Icône de l'app : dossier partagé, sa copie locale, dossier de Studio Dock, sinon icône livrée."""
     if not app.icon.file or not _relatif_sur(app.icon.file):
         return None
-    bases = [home_dir() / DOSSIER_COPIES, home_dir(), resources_dir() / "resources"]
+    bases = [home_dir() / DOSSIER_COPIES, home_dir() / DOSSIER_EN_LIGNE, home_dir(), resources_dir() / "resources"]
     if partage is not None:
         bases.insert(0, partage)
     for base in bases:
