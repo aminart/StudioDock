@@ -4,6 +4,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+## [0.3.1] — 2026-11-09
+
+### Corrigé
+
+- Windows : Studio Dock pouvait planter en redémarrant juste après son installation (ou après une mise à jour),
+  avec « No module named '_multiprocessing' » : la nouvelle copie réutilisait le dossier temporaire de l'ancienne,
+  effacé à sa fermeture. Les programmes lancés par Studio Dock (lui-même, les apps) démarrent désormais avec un
+  environnement propre.
+
 ### Modifié
 
 - Bouton Réglages de l'en-tête : icône en roue crantée.
