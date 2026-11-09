@@ -68,3 +68,17 @@ def test_arret_de_studio_dock_arrete_les_apps(maison):
         except OSError:
             return
     raise AssertionError("l'app tourne encore après l'arrêt de Studio Dock")
+
+
+def test_programmes_lances_sans_variables_de_pyinstaller(monkeypatch):
+    """Un exe PyInstaller relancé ne doit pas réutiliser le dossier temporaire de Studio Dock."""
+    from app import winapi
+
+    monkeypatch.setenv("_MEIPASS2", "C:\\Temp\\_MEI1234")
+    monkeypatch.setenv("_PYI_APPLICATION_HOME_DIR", "C:\\Temp\\_MEI1234")
+    monkeypatch.setenv("CHEMIN_TEST", "gardé")
+    for detache in (False, True):
+        env = winapi.options_processus(detache=detache)["env"]
+        assert "_MEIPASS2" not in env and "_PYI_APPLICATION_HOME_DIR" not in env
+        assert env["PYINSTALLER_RESET_ENVIRONMENT"] == "1"
+        assert env["CHEMIN_TEST"] == "gardé"

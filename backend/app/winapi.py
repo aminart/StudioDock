@@ -66,13 +66,28 @@ def rattacher_au_groupe() -> bool:
     return True
 
 
+def environnement_propre() -> dict[str, str]:
+    """Environnement d'un programme lancé par Studio Dock, sans les variables internes de PyInstaller.
+
+    Studio Dock (exe PyInstaller « un seul fichier ») décompresse ses fichiers dans un dossier temporaire qu'il
+    efface en quittant. Un exe PyInstaller lancé avec ces variables héritées (Studio Dock relancé après son
+    installation ou sa mise à jour, ou une app) peut réutiliser ce dossier au lieu du sien, et planter quand il
+    disparaît (« No module named '_multiprocessing' »). PYINSTALLER_RESET_ENVIRONMENT demande un départ neuf.
+    """
+    env = {k: v for k, v in os.environ.items() if not (k.startswith("_PYI_") or k == "_MEIPASS2")}
+    env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+    return env
+
+
 def options_processus(detache: bool = False) -> dict:
-    """Arguments de subprocess.Popen : sans fenêtre noire ; détaché (hors groupe) pour une app native."""
+    """Arguments de subprocess.Popen : sans fenêtre noire ; détaché (hors groupe) pour une app native ;
+    environnement sans les variables de PyInstaller."""
+    env = {"env": environnement_propre()}
     if not IS_WIN:
-        return {"start_new_session": True} if detache else {}
+        return {"start_new_session": True, **env} if detache else env
     if detache:
-        return {"creationflags": DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB}
-    return {"creationflags": CREATE_NO_WINDOW}
+        return {"creationflags": DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB, **env}
+    return {"creationflags": CREATE_NO_WINDOW, **env}
 
 
 def lancer_detache(commande: list[str], **kwargs) -> subprocess.Popen:
@@ -83,7 +98,8 @@ def lancer_detache(commande: list[str], **kwargs) -> subprocess.Popen:
         if not IS_WIN:
             raise
         # Groupe sans autorisation de sortie (Studio Dock lancé dans un autre job) : lancement simple
-        return subprocess.Popen(commande, creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP, **kwargs)
+        return subprocess.Popen(commande, creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+                                env=environnement_propre(), **kwargs)
 
 
 def ouvrir(cible: str) -> None:
@@ -91,11 +107,12 @@ def ouvrir(cible: str) -> None:
     fermer Studio Dock ne ferme pas le navigateur."""
     if IS_WIN:
         try:
-            subprocess.Popen(["cmd", "/c", "start", "", cible],
+            subprocess.Popen(["cmd", "/c", "start", "", cible], env=environnement_propre(),
                              creationflags=CREATE_NO_WINDOW | CREATE_BREAKAWAY_FROM_JOB)
             return
         except OSError:
-            subprocess.Popen(["cmd", "/c", "start", "", cible], creationflags=CREATE_NO_WINDOW)
+            subprocess.Popen(["cmd", "/c", "start", "", cible], env=environnement_propre(),
+                             creationflags=CREATE_NO_WINDOW)
             return
     if cible.startswith(("http://", "https://")):
         webbrowser.open(cible)
