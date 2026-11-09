@@ -58,14 +58,23 @@ def nettoyer_ancienne_version() -> None:
         pass
 
 
-def appliquer(nouvelle: Trouvee, avant_redemarrage) -> None:
-    """Remplace l'exe en cours par la nouvelle version et redémarre Studio Dock (Windows, exe empaqueté)."""
+def version_en_ligne(catalogue: Catalogue) -> str | None:
+    """Catalogue en ligne : version de Studio Dock publiée, si elle est plus récente que celle-ci."""
+    publiee = catalogue.studiodock.version
+    return publiee if publiee and _cle_version(publiee) > _cle_version(VERSION) else None
+
+
+def appliquer(nouvelle: Trouvee, avant_redemarrage, apres_copie=None) -> None:
+    """Remplace l'exe en cours par la nouvelle version et redémarre Studio Dock (Windows, exe empaqueté).
+    `apres_copie` : appelé une fois la nouvelle version copiée (retire le fichier des Téléchargements)."""
     if not remplacement_possible():
         raise RuntimeError("Mise à jour automatique disponible seulement pour StudioDock.exe sous Windows.")
     actuel = Path(sys.executable)
     copie = actuel.with_name(f"{NOM}.new.exe")
     ancien = actuel.with_name(f"{NOM}.old.exe")
     shutil.copyfile(nouvelle.chemin, copie)
+    if apres_copie:
+        apres_copie()
     ancien.unlink(missing_ok=True)
     actuel.rename(ancien)
     try:

@@ -116,4 +116,4 @@ def test_nouvelle_version_de_studio_dock(client, maison, tmp_path):
     assert client.get("/api/apps").json()["dock"]["update"] is None  # plus ancienne : ignorée
     (partage / "StudioDock" / "StudioDock-9.0.0.py").write_text("")
     dock = client.get("/api/apps").json()["dock"]
-    assert dock == {"update": "9.0.0", "canUpdate": False}
+    assert dock == {"update": "9.0.0", "canUpdate": False, "waiting": False}

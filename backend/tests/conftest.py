@@ -16,8 +16,10 @@ def port_libre() -> int:
 
 @pytest.fixture
 def maison(tmp_path, monkeypatch):
-    """Dossier de Studio Dock isolé pour chaque test."""
+    """Dossier de Studio Dock isolé pour chaque test (et un dossier Téléchargements à lui)."""
     monkeypatch.setenv("STUDIODOCK_HOME", str(tmp_path))
+    (tmp_path / "Telechargements").mkdir()
+    monkeypatch.setenv("STUDIODOCK_DOWNLOADS", str(tmp_path / "Telechargements"))
     return tmp_path
 
 
@@ -48,6 +50,10 @@ def client(maison, monkeypatch):
 
     monkeypatch.setattr(main, "installeur", Installeur(pilote))
     main._cache_partage.clear()
+    from app.telechargements import Telechargements
+
+    monkeypatch.setattr(main, "telech", Telechargements())
+    main._imports_refuses.clear()
     # Pas de navigateur ni d'Explorateur pendant les tests
     ouverts = []
     monkeypatch.setattr(main.winapi, "ouvrir", ouverts.append)

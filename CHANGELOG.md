@@ -4,6 +4,20 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+## [0.4.0] — 2026-11-09
+
+### Ajouté
+
+- Catalogue en ligne, pour une équipe dont le dossier n'existe qu'en ligne (SharePoint, Teams) : le navigateur
+  télécharge, Studio Dock installe. Le catalogue (`studio-dock-catalogue.zip`) est importé dès qu'il arrive dans
+  Téléchargements ; « Installer » et les mises à jour ouvrent le dossier en ligne de l'app, puis Studio Dock copie
+  l'exe téléchargé dans le dossier d'installation et le retire des Téléchargements. « Vérifier les mises à jour »,
+  mise à jour de Studio Dock lui-même par le même chemin.
+- Écran « Préparer le catalogue » (Réglages) : versions lues dans une copie locale du dossier, liens des dossiers en
+  ligne, fabrication de `studio-dock-catalogue.zip`.
+- Premier lancement : un exe déjà posé dans un dossier de ce poste (hors Téléchargements et dossier partagé) y reste,
+  sans copie ni redémarrage.
+
 ## [0.3.1] — 2026-11-09
 
 ### Corrigé

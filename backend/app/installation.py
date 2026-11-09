@@ -39,9 +39,13 @@ def disponible() -> bool:
 
 
 def dossier_propose() -> Path:
-    """Dossier proposé : celui préparé par l'administratrice (install_folder), sinon un dossier personnel."""
+    """Dossier proposé : celui préparé par l'administratrice (install_folder) ; sinon celui où l'exe a été posé,
+    s'il est sur ce poste (pas Téléchargements, pas un dossier réseau ni partagé) ; sinon un dossier personnel."""
     if propose := reglages.developper(reglages.preset().get("install_folder")):
         return propose
+    actuel = exe_dir()
+    if actuel is not None and sur_place_possible(actuel):
+        return actuel
     base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
     return Path(base) / "Programs" / "StudioDock"
 
@@ -80,6 +84,18 @@ def dedans(enfant: Path, parent: Path) -> bool:
     except OSError:
         return False
     return enfant == parent or parent in enfant.parents
+
+
+def sur_place_possible(dossier: Path) -> bool:
+    """L'exe peut rester où il est : dossier de ce poste, hors Téléchargements et hors dossier partagé."""
+    from app.telechargements import dossier_telechargements
+
+    if str(dossier).startswith(("\\\\", "//")) or dedans(dossier, dossier_telechargements()):
+        return False
+    partage = reglages.dossier_partage()
+    if partage is not None and dedans(dossier, partage):
+        return False
+    return not any((d / "catalogue.json").is_file() for d in (dossier, dossier.parent))
 
 
 def verifier(dossier: Path, partage: Path | None) -> None:

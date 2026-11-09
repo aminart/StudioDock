@@ -120,6 +120,7 @@ export const AppIcon: React.FC<{ app: DockApp; size: number }> = ({ app, size })
 /** État d'une app en langage courant (les détails techniques sont dans la fiche). */
 export const statusText = (app: DockApp): string => {
   if (app.progress !== null) return app.installed ? `Mise à jour… ${app.progress} %` : `Installation… ${app.progress} %`;
+  if (app.waiting) return 'Téléchargement attendu…';
   switch (app.state) {
     case 'on': return app.external ? 'Ouverte hors de Studio Dock' : 'Ouverte';
     case 'starting': return 'Démarrage…';
@@ -131,12 +132,12 @@ export const statusText = (app: DockApp): string => {
 
 const dotClass = (app: DockApp) =>
   app.state === 'on' ? 'bg-success'
-    : app.state === 'starting' || app.progress !== null ? 'bg-warning'
+    : app.state === 'starting' || app.progress !== null || app.waiting ? 'bg-warning'
       : app.state === 'error' ? 'bg-danger'
         : app.update ? 'bg-accent' : 'bg-line-dashed';
 const statusClass = (app: DockApp) =>
   app.state === 'on' ? 'text-success-text'
-    : app.state === 'starting' || app.progress !== null ? 'text-warning-text'
+    : app.state === 'starting' || app.progress !== null || app.waiting ? 'text-warning-text'
       : app.state === 'error' ? 'text-danger-text'
         : app.update ? 'text-accent-ink' : 'text-ink-subtle';
 
@@ -170,6 +171,7 @@ export type Actions = {
   link: (url: string) => void;
   install: (app: DockApp) => void;
   uninstall: (app: DockApp) => void;
+  cancelDownload: (app: DockApp) => void;
 };
 
 const btnPrimary = 'flex h-11 items-center justify-center gap-2 rounded border-0 bg-primary px-5 font-medium text-primary-on hover:bg-primary-hover disabled:cursor-default disabled:opacity-60 disabled:hover:bg-primary';
@@ -178,7 +180,7 @@ const btnGhost = 'flex h-11 min-w-0 items-center justify-center gap-2 whitespace
 
 /** Petit bouton « mettre à jour » à côté de l'action principale d'une carte. */
 export const UpdateButton: React.FC<{ app: DockApp; actions: Actions }> = ({ app, actions }) =>
-  !app.update || app.progress !== null || app.state === 'starting' ? null : (
+  !app.update || app.progress !== null || app.state === 'starting' || app.waiting ? null : (
     <button type="button" onClick={() => actions.install(app)}
       aria-label={`Mettre à jour ${app.name} en version ${app.availableVersion}${app.state === 'on' ? ' (l\'app sera arrêtée)' : ''}`}
       title={`Mettre à jour en ${app.availableVersion}`}
@@ -240,7 +242,7 @@ export const AppNotice: React.FC<{ app: DockApp; actions: Actions; compact?: boo
     return (
       <div className="flex items-start gap-2 rounded-md border border-line bg-surface-2 px-3 py-2 text-[13px] text-ink-muted">
         <IconFolder className="mt-0.5 shrink-0" />
-        <span>Pas encore de version dans le dossier partagé, ou dossier inaccessible.</span>
+        <span>Pas encore de version disponible pour l'équipe.</span>
       </div>
     );
   }
@@ -260,9 +262,26 @@ export const AppNotice: React.FC<{ app: DockApp; actions: Actions; compact?: boo
 };
 
 /** Boutons selon l'état et le type d'app. */
+/** Catalogue en ligne : téléchargement demandé, en attente dans Téléchargements. */
+export const WaitingActions: React.FC<{ app: DockApp; actions: Actions; wide?: boolean }> = ({ app, actions, wide }) => (
+  <div className={`flex min-w-0 flex-col gap-2 ${wide ? 'min-w-[260px]' : 'flex-1'}`}>
+    <div role="status" className="flex items-start gap-2 rounded-md bg-accent-soft px-3 py-2.5 text-[13px] leading-snug text-accent-ink">
+      <span className="mt-0.5 shrink-0"><IconSpinner /></span>
+      <span>Téléchargez {app.name} dans la page qui s'est ouverte : Studio Dock l'installe dès qu'il arrive dans vos Téléchargements.</span>
+    </div>
+    <div className="flex gap-2">
+      <button type="button" onClick={() => actions.install(app)} className={`${btnGhost} h-9 flex-1 px-3 text-sm`}>
+        <IconExternal /> Rouvrir la page
+      </button>
+      <button type="button" onClick={() => actions.cancelDownload(app)} className={`${btnGhost} h-9 px-3 text-sm`}>Annuler</button>
+    </div>
+  </div>
+);
+
 export const AppActions: React.FC<{ app: DockApp; actions: Actions; pending: boolean; wide?: boolean }> = ({ app, actions, pending, wide }) => {
   const team = React.useContext(TeamContext);
   const fill = wide ? 'min-w-[170px]' : 'min-w-0 flex-1';
+  if (app.waiting && app.progress === null) return <WaitingActions app={app} actions={actions} wide={wide} />;
   if (app.progress !== null) {
     return (
       <button type="button" disabled className={`${btnPrimary} ${fill}`}>

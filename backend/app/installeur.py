@@ -1,4 +1,5 @@
-"""Installer, mettre à jour et retirer les apps à partir du dossier partagé de l'équipe.
+"""Installer, mettre à jour et retirer les apps à partir du dossier partagé de l'équipe (ou, avec un catalogue
+en ligne, à partir du fichier téléchargé par le navigateur).
 
 Les apps ne sont jamais lancées depuis le partage : leur programme est copié dans le dossier de Studio Dock
 (apps/<id>/), sur le poste de chacun. Une mise à jour arrête l'app si elle tourne, copie la nouvelle version,
@@ -11,6 +12,7 @@ import subprocess
 import threading
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 from app import winapi
 from app.catalogue import AppEntry
@@ -73,21 +75,36 @@ class Installeur:
             suivi = self.copies[app.id] = Copie()
         threading.Thread(target=self._travail, args=(app, disponible.chemin, suivi), daemon=True).start()
 
-    def _travail(self, app: AppEntry, source: Path, suivi: Copie) -> None:
+    def installer_fichier(self, app: AppEntry, source: Path, nom: str, apres: Callable[[], None]) -> bool:
+        """Catalogue en ligne : installe le fichier arrivé dans Téléchargements, sous le nom `nom`, puis appelle
+        `apres` (qui le retire des Téléchargements). False si une copie de cette app est déjà en cours."""
+        with self._verrou:
+            actuelle = self.copies.get(app.id)
+            if actuelle and not actuelle.fini:
+                return False
+            suivi = self.copies[app.id] = Copie()
+        threading.Thread(target=self._travail, args=(app, source, suivi, nom, apres, "Téléchargements"),
+                         daemon=True).start()
+        return True
+
+    def _travail(self, app: AppEntry, source: Path, suivi: Copie, nom: str | None = None,
+                 apres: Callable[[], None] | None = None, origine: str = "le dossier partagé") -> None:
         try:
             if app.kind == "web":
-                self._installer_web(app, source, suivi)
+                self._installer_web(app, source, suivi, nom)
             else:
-                self._installer_native(app, source, suivi)
+                self._installer_native(app, source, suivi, nom)
             suivi.progres = 100
+            if apres:
+                apres()
         except OSError as e:
-            suivi.erreur = f"Copie depuis le dossier partagé impossible : {e}"
+            suivi.erreur = f"Copie depuis {origine} impossible : {e}"
         finally:
             suivi.fini = True
 
-    def _installer_web(self, app: AppEntry, source: Path, suivi: Copie) -> None:
+    def _installer_web(self, app: AppEntry, source: Path, suivi: Copie, nom: str | None = None) -> None:
         dossier = home_dir() / "apps" / app.id
-        cible = dossier / source.name
+        cible = dossier / (nom or source.name)
         # Une app lancée verrouille son programme (Windows) : on l'arrête avant de la remplacer
         if self.pilote.est_lancee(app):
             self.pilote.arreter(app)
@@ -100,8 +117,8 @@ class Installeur:
                 except OSError:
                     pass  # encore utilisé : sera retenté à la prochaine mise à jour
 
-    def _installer_native(self, app: AppEntry, source: Path, suivi: Copie) -> None:
-        cible = home_dir() / "installateurs" / source.name
+    def _installer_native(self, app: AppEntry, source: Path, suivi: Copie, nom: str | None = None) -> None:
+        cible = home_dir() / "installateurs" / (nom or source.name)
         _copier(source, cible, suivi)
         if cible.suffix.lower() == ".msi":
             winapi.lancer_detache(["msiexec", "/i", str(cible)])

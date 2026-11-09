@@ -23,7 +23,8 @@ export const InstallFolderForm: React.FC<{
     setError(null);
     try {
       const r = await api.installDock(value.trim());
-      onRestart(r.folder);
+      if (r.restarting) onRestart(r.folder);
+      // Sinon (exe déjà dans ce dossier) : installé sur place, l'accueil s'affiche au prochain rafraîchissement
     } catch (e) {
       setError(e instanceof ActionError ? e.message : 'Installation impossible : Studio Dock ne répond pas.');
       setBusy(false);
@@ -101,7 +102,7 @@ export const InstallScreen: React.FC<{ onRestart: (folder: string) => void; rest
           <ul className="m-0 flex flex-col gap-1.5 pl-5 text-sm text-ink-muted">
             <li>Un dossier de ce poste, pas un dossier réseau ni le dossier partagé de l'équipe.</li>
             <li>Un raccourci « Studio Dock » est ajouté au menu Démarrer.</li>
-            <li>Le fichier que vous venez d'ouvrir n'est plus utile ensuite ; s'il est dans le dossier partagé, laissez-le pour vos collègues.</li>
+            <li>Si Studio Dock est déjà dans ce dossier, il y reste ; sinon il s'y copie, et le fichier ouvert n'est plus utile (laissez-le s'il est dans le dossier partagé).</li>
           </ul>
         </section>
       )}

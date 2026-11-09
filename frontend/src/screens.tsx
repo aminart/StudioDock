@@ -3,8 +3,8 @@ import { api } from './api';
 import { InstallFolderForm } from './install';
 import type { DockApp, DockState, Settings } from './types';
 import {
-  Actions, AppActions, AppIcon, AppNotice, IconAlert, IconBack, IconChevron, IconDownload, IconFolder, IconRefresh, IconSpinner,
-  PlatformContext, ProgressBar, StatusChip, StatusLine, TeamContext, UpdateBanner, UpdateButton, where,
+  Actions, AppActions, AppIcon, AppNotice, IconAlert, IconBack, IconChevron, IconDownload, IconExternal, IconFolder, IconRefresh, IconSpinner,
+  PlatformContext, ProgressBar, StatusChip, StatusLine, TeamContext, UpdateBanner, UpdateButton, WaitingActions, where,
 } from './ui';
 
 /** Mes applications : installées sur ce poste, ou imposées à l'équipe (installation en cours ou en attente). */
@@ -110,7 +110,9 @@ const AvailableCard: React.FC<{ app: DockApp; actions: Actions }> = ({ app, acti
       </div>
     </div>
     <AppNotice app={app} actions={actions} />
-    {app.progress !== null ? (
+    {app.waiting && app.progress === null ? (
+      <WaitingActions app={app} actions={actions} wide />
+    ) : app.progress !== null ? (
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-between text-[13px] text-ink-subtle"><span>Installation…</span><span className="font-mono">{app.progress} %</span></div>
         <ProgressBar app={app} />
@@ -157,7 +159,70 @@ const Summary: React.FC<{ apps: DockApp[] }> = ({ apps }) => {
   );
 };
 
-export const Home: React.FC<{ state: DockState; actions: Actions; pending: Set<string> }> = ({ state, actions, pending }) => {
+/** Catalogue en ligne : date du catalogue, vérification des mises à jour, import du premier catalogue. */
+export type CatalogueActions = { check: () => void; cancel: () => void };
+
+const formatDate = (iso: string | null) => {
+  if (!iso) return null;
+  const d = new Date(iso.replace(' ', 'T'));
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+};
+
+const OnlineBar: React.FC<{ state: DockState; catalogue: CatalogueActions }> = ({ state, catalogue }) => {
+  const { online } = state;
+  const btn = 'flex h-9 items-center gap-2 rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body hover:bg-surface-3';
+  const waiting = online.waiting && (
+    <div role="status" className="flex flex-wrap items-center gap-3 rounded-md bg-accent-soft px-4 py-3 text-sm text-accent-ink">
+      <IconSpinner />
+      <span className="flex-grow">Téléchargez <span className="font-mono">studio-dock-catalogue.zip</span> dans la page qui s'est ouverte : Studio Dock l'importe dès qu'il arrive dans vos Téléchargements.</span>
+      <button type="button" onClick={catalogue.check} className="border-0 bg-transparent p-0 font-medium text-accent-ink underline">Rouvrir la page</button>
+      <button type="button" onClick={catalogue.cancel} className="border-0 bg-transparent p-0 font-medium text-accent-ink underline">Annuler</button>
+    </div>
+  );
+  const erreur = online.error && (
+    <div role="alert" className="flex items-start gap-2 rounded-md border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning-text">
+      <IconAlert className="mt-0.5 shrink-0" />
+      <span>Catalogue téléchargé illisible, retéléchargez-le. <span className="font-mono text-[13px]">{online.error}</span></span>
+    </div>
+  );
+  if (state.source === 'online') {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-3 text-sm text-ink-muted">
+          <span>Catalogue de l'équipe{online.published ? ` du ${formatDate(online.published)}` : ''}</span>
+          {!online.waiting && (
+            <button type="button" onClick={catalogue.check} className={btn}><IconRefresh /> Vérifier les mises à jour</button>
+          )}
+        </div>
+        {waiting}
+        {erreur}
+      </div>
+    );
+  }
+  if (state.source !== 'local' || state.sharedFolder) return null;
+  return (
+    <div className="flex flex-col gap-3">
+      {!online.waiting && (
+        <div className="flex flex-wrap items-center gap-3 rounded-md border border-line bg-surface px-4 py-3 text-sm text-ink-muted">
+          <IconDownload className="shrink-0" />
+          <span className="min-w-0 flex-[1_1_360px]">
+            Votre équipe partage ses applications en ligne ? Téléchargez son catalogue
+            (<span className="font-mono text-[13px]">studio-dock-catalogue.zip</span>) : Studio Dock l'importe dès qu'il arrive dans vos Téléchargements.
+          </span>
+          {online.link ? (
+            <button type="button" onClick={catalogue.check} className={btn}><IconExternal /> Ouvrir le catalogue</button>
+          ) : (
+            <a href="#/reglages" className="text-accent">Indiquer son lien</a>
+          )}
+        </div>
+      )}
+      {waiting}
+      {erreur}
+    </div>
+  );
+};
+
+export const Home: React.FC<{ state: DockState; actions: Actions; pending: Set<string>; catalogue: CatalogueActions }> = ({ state, actions, pending, catalogue }) => {
   const team = state.source !== 'local';
   const mine = state.apps.filter((a) => isMine(a, team));
   const available = state.apps.filter((a) => !isMine(a, team));
@@ -170,6 +235,7 @@ export const Home: React.FC<{ state: DockState; actions: Actions; pending: Set<s
         </div>
         <Summary apps={mine} />
       </div>
+      <OnlineBar state={state} catalogue={catalogue} />
       {mine.length === 0 ? (
         <div className="rounded-lg border border-dashed border-line-dashed bg-surface p-8 text-center text-ink-muted">
           {team ? 'Aucune application installée pour le moment : choisissez-en dans « Disponibles pour vous ».'
@@ -428,8 +494,66 @@ export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'h
         )}
       </section>
 
+      <OnlineSection settings={settings} onSaved={(s) => { setSettings(s); onSaved(); }} />
+
       <InstallSection settings={settings} platform={platform} openHome={() => openFolder('home')} onRestart={onRestart} />
+
+      <section className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-line-strong bg-surface px-6 py-4">
+        <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-0.5">
+          <h2 className="m-0 text-[17px] font-bold text-ink">Vous préparez le catalogue de l'équipe ?</h2>
+          <p className="m-0 text-sm text-ink-muted">Versions, liens des dossiers en ligne et fichier <span className="font-mono">studio-dock-catalogue.zip</span> à mettre en ligne.</p>
+        </div>
+        <a href="#/catalogue" className="flex h-10 items-center rounded border border-line-strong bg-surface px-4 text-sm font-medium text-ink-body no-underline hover:bg-surface-3">
+          Préparer le catalogue
+        </a>
+      </section>
     </div>
+  );
+};
+
+/* ---------- Catalogue en ligne ---------- */
+
+const OnlineSection: React.FC<{ settings: Settings | null; onSaved: (s: Settings) => void }> = ({ settings, onSaved }) => {
+  const [value, setValue] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const [message, setMessage] = React.useState<string | null>(null);
+  React.useEffect(() => { if (settings) setValue(settings.catalogue_link); }, [settings?.catalogue_link]);
+  const save = async () => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      onSaved(await api.saveCatalogueLink(value.trim()));
+      setMessage(value.trim() ? 'Lien enregistré.' : 'Lien retiré.');
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : 'Enregistrement impossible.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
+      <div className="flex flex-col gap-1">
+        <h2 className="m-0 text-[19px] font-bold text-ink">Catalogue en ligne de l'équipe</h2>
+        <p className="m-0 text-sm text-ink-muted">
+          Quand l'équipe n'a qu'un dossier en ligne (SharePoint, Teams), sans dossier partagé : le navigateur télécharge
+          le catalogue et les applications, Studio Dock les récupère dans vos Téléchargements et les installe.
+          Le lien est repris du catalogue dès le premier import.
+        </p>
+      </div>
+      <form className="flex flex-wrap gap-2.5" onSubmit={(e) => { e.preventDefault(); save(); }}>
+        <label htmlFor="lien-catalogue" className="sr-only">Lien du catalogue en ligne</label>
+        <input id="lien-catalogue" value={value} onChange={(e) => setValue(e.target.value)} placeholder="https://entreprise.sharepoint.com/…"
+          className="h-11 min-w-0 flex-[1_1_320px] rounded border border-line-strong bg-surface-2 px-3.5 font-mono text-sm text-ink focus:outline focus:outline-2 focus:outline-focus" />
+        <button type="submit" disabled={busy || value.trim() === (settings?.catalogue_link ?? '')}
+          className="flex h-11 items-center gap-2 rounded border-0 bg-primary px-5 font-medium text-primary-on hover:bg-primary-hover disabled:cursor-default disabled:bg-primary-disabled disabled:text-primary-on-disabled">
+          {busy && <IconSpinner />} Enregistrer
+        </button>
+      </form>
+      {message && <p role="status" className="m-0 text-sm text-ink-muted">{message}</p>}
+      {settings && (
+        <p className="m-0 text-[13px] text-ink-subtle">Téléchargements surveillés : <span className="font-mono">{settings.downloads}</span></p>
+      )}
+    </section>
   );
 };
 

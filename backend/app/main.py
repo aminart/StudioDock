@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app import installation, miseajour, reglages, winapi
+from app import installation, miseajour, reglages, telechargements, winapi
 from app.catalogue import AppEntry, Catalogue, Source, fichier_icone, partage_accessible
 from app.info import (APP_ID, APP_NAME, EMPAQUETE, PLATEFORME, REPO_DIR, VERSION, dossier_installation_choisi, exe_dir,
                       home_dir, logs_dir, resources_dir)
@@ -47,7 +47,10 @@ async def erreur_inattendue(_requete, exc: Exception):
 
 
 def _disponible(entree: AppEntry, partage: Path | None) -> Trouvee | None:
-    """Dernière version sur le partage, relue au plus toutes les 5 secondes (partage réseau parfois lent)."""
+    """Dernière version sur le partage, relue au plus toutes les 5 secondes (partage réseau parfois lent).
+    Catalogue en ligne : la version publiée indiquée dans le catalogue."""
+    if source.origine == "online":  # sans lien, impossible de la télécharger : pas disponible
+        return Trouvee(Path(), entree.version) if entree.version and entree.link else None
     if partage is None:
         return None
     cle = f"{partage}|{entree.id}|{entree.source}|{entree.exe}"
@@ -92,6 +95,7 @@ def _carte(entree: AppEntry, etat: dict[str, Any], vues: set[str]) -> dict[str, 
         "progress": copie.progres if copie and not copie.fini else None,
         "installError": copie.erreur if copie else None,
         "isNew": equipe and not est_installee and entree.id not in vues,
+        "waiting": source.origine == "online" and telech.en_attente(entree.id),
     }
 
 
@@ -101,9 +105,75 @@ def _visibles(catalogue: Catalogue) -> list[AppEntry]:
     return [a for a in catalogue.apps if a.mode != "masque"]
 
 
+# --- Catalogue en ligne : ce qui arrive dans Téléchargements -------------------------------------------------
+
+telech = telechargements.Telechargements()
+_imports_refuses: set[tuple[str, float]] = set()  # zips déjà refusés (pour ne pas les relire à chaque passage)
+
+
+def _importer_catalogue_telecharge() -> None:
+    """Un studio-dock-catalogue.zip arrivé dans Téléchargements est importé (sauf avec un dossier partagé)."""
+    if reglages.dossier_partage() is not None:
+        return
+    archive = telech.catalogue()
+    if archive is None:
+        return
+    cle = (str(archive), archive.stat().st_mtime)
+    if cle in _imports_refuses:
+        return
+    try:
+        catalogue = telechargements.importer_catalogue(archive)
+    except telechargements.ErreurCatalogue as e:
+        _imports_refuses.add(cle)
+        telech.erreur_catalogue = f"{archive.name} : {e}"
+        return
+    telech.erreur_catalogue = None
+    telech.annuler("catalogue")
+    valeurs: dict[str, Any] = {"online_imported": time.strftime("%Y-%m-%d %H:%M")}
+    if catalogue.link:
+        valeurs["catalogue_link"] = catalogue.link
+    reglages.modifier(**valeurs)
+    telechargements.retirer(archive)
+
+
+def _recuperer_telechargements(catalogue: Catalogue) -> None:
+    """Apps (et Studio Dock) demandées : leur fichier arrivé dans Téléchargements est installé puis retiré."""
+    if source.origine != "online" or installation.a_installer():
+        return
+    for entree in catalogue.apps:
+        if not telech.en_attente(entree.id):
+            continue
+        trouvee = telech.programme_de(entree)
+        if trouvee is None:
+            continue
+        fichier = trouvee.chemin
+        nom = telechargements.nom_de_base(fichier) + fichier.suffix
+        if installeur.installer_fichier(entree, fichier, nom, lambda f=fichier: telechargements.retirer(f)):
+            telech.annuler(entree.id)
+    if telech.en_attente("studiodock") and miseajour.remplacement_possible():
+        trouvee = telech.studio_dock()
+        if trouvee and miseajour.version_en_ligne(Catalogue(studiodock={"version": trouvee.version})):
+            telech.annuler("studiodock")
+            miseajour.appliquer(trouvee, pilote.tout_arreter, lambda f=trouvee.chemin: telechargements.retirer(f))
+
+
+def _etat_en_ligne(catalogue: Catalogue) -> dict[str, Any]:
+    valeurs = reglages.lire()
+    return {
+        "published": catalogue.published if source.origine == "online" else None,
+        "imported": valeurs.get("online_imported"),
+        "link": (catalogue.link if source.origine == "online" else None) or valeurs.get("catalogue_link") or None,
+        "waiting": telech.en_attente("catalogue"),
+        "error": telech.erreur_catalogue,
+        "downloads": str(telechargements.dossier_telechargements()),
+    }
+
+
 @app.get("/api/apps")
 async def lister() -> dict[str, Any]:
+    await asyncio.to_thread(_importer_catalogue_telecharge)
     catalogue = source.lire()
+    await asyncio.to_thread(_recuperer_telechargements, catalogue)
     apps = _visibles(catalogue)
     partage = _partage_lisible()
     a_installer = installation.a_installer()
@@ -115,6 +185,8 @@ async def lister() -> dict[str, Any]:
         reglages.marquer_vues([a.id for a in apps])
     vues = reglages.deja_vues()
     nouvelle = await asyncio.to_thread(miseajour.version_disponible, catalogue, partage)
+    version_dock = nouvelle.version if nouvelle else (
+        miseajour.version_en_ligne(catalogue) if source.origine == "online" else None)
     cartes = await asyncio.to_thread(lambda: [_carte(a, etats[a.id], vues) for a in apps])
     return {
         "version": VERSION,
@@ -125,7 +197,9 @@ async def lister() -> dict[str, Any]:
         "sharedFolder": str(source.partage) if source.partage else None,
         "sharedOk": partage is not None,
         "error": source.erreur,
-        "dock": {"update": nouvelle.version if nouvelle else None, "canUpdate": miseajour.remplacement_possible()},
+        "dock": {"update": version_dock, "canUpdate": miseajour.remplacement_possible(),
+                 "waiting": telech.en_attente("studiodock")},
+        "online": _etat_en_ligne(catalogue),
         "canChooseFolder": choisir_dossier is not None,
         "needsInstall": a_installer,
         "apps": cartes,
@@ -144,6 +218,14 @@ async def installer(app_id: str):
     if installation.a_installer():
         return JSONResponse(status_code=409, content={
             "detail": "Installez d'abord Studio Dock dans votre dossier (Réglages).", "code": "not_installed"})
+    if source.origine == "online":
+        # Catalogue en ligne : le navigateur télécharge (connexion de l'entreprise), Studio Dock installe ensuite
+        if not entree.link:
+            return JSONResponse(status_code=409, content={
+                "detail": f"Le catalogue n'indique pas où télécharger {entree.name}.", "code": "no_link"})
+        telech.attendre(entree.id)
+        winapi.ouvrir(entree.link)
+        return await _apres(entree)
     try:
         await asyncio.to_thread(installeur.installer, entree, _partage_lisible())
     except FileNotFoundError as e:
@@ -151,6 +233,81 @@ async def installer(app_id: str):
     except ErreurAction as e:
         return _erreur(e)
     return await _apres(entree)
+
+
+@app.post("/api/apps/{app_id}/cancel-download")
+async def annuler_telechargement(app_id: str):
+    entree = _app_ou_404(app_id)
+    telech.annuler(entree.id)
+    return await _apres(entree)
+
+
+@app.post("/api/catalogue/check")
+async def verifier_catalogue():
+    """Ouvre le lien du catalogue en ligne dans le navigateur ; le zip téléchargé sera importé tout seul."""
+    catalogue = source.lire()
+    lien = _etat_en_ligne(catalogue)["link"]
+    if not lien:
+        raise HTTPException(409, "Indiquez d'abord le lien du catalogue de l'équipe (Réglages).")
+    telech.attendre("catalogue")
+    winapi.ouvrir(lien)
+    return {"ok": True}
+
+
+@app.post("/api/catalogue/cancel")
+async def annuler_catalogue():
+    telech.annuler("catalogue")
+    return {"ok": True}
+
+
+class Dossier(BaseModel):
+    folder: str
+
+
+class Fabrication(BaseModel):
+    folder: str
+    links: dict[str, str] = {}
+    studiodockLink: str = ""
+    catalogueLink: str = ""
+
+
+def _dossier_preparation(brut: str) -> Path:
+    dossier = reglages.developper(brut)
+    if dossier is None or not (dossier / "catalogue.json").is_file():
+        raise HTTPException(409, "Ce dossier ne contient pas de catalogue.json.")
+    return dossier
+
+
+@app.post("/api/admin/catalogue")
+async def lire_preparation(corps: Dossier):
+    """Préparer le catalogue : versions trouvées dans le dossier de préparation, liens déjà saisis."""
+    dossier = _dossier_preparation(corps.folder)
+    try:
+        etat = await asyncio.to_thread(telechargements.preparer, dossier)
+    except (OSError, ValueError) as e:
+        raise HTTPException(409, f"catalogue.json : {getattr(e, 'args', [e])[0] if isinstance(e, OSError) else e}") from e
+    reglages.modifier(prepare_folder=str(dossier))
+    return {**etat, "folder": str(dossier)}
+
+
+@app.post("/api/admin/catalogue/build")
+async def fabriquer_catalogue(corps: Fabrication):
+    """Écrit versions et liens dans catalogue.json et fabrique studio-dock-catalogue.zip, prêt à mettre en ligne."""
+    dossier = _dossier_preparation(corps.folder)
+    try:
+        archive = await asyncio.to_thread(telechargements.fabriquer, dossier, corps.links, corps.studiodockLink,
+                                          corps.catalogueLink)
+        etat = await asyncio.to_thread(telechargements.preparer, dossier)
+    except (OSError, ValueError) as e:
+        raise HTTPException(409, f"Fabrication impossible : {e}") from e
+    return {**etat, "folder": str(dossier), "zip": str(archive)}
+
+
+@app.post("/api/admin/catalogue/show")
+async def montrer_preparation(corps: Dossier):
+    dossier = _dossier_preparation(corps.folder)
+    winapi.ouvrir(str(dossier))
+    return {"ok": True}
 
 
 @app.post("/api/apps/{app_id}/uninstall")
@@ -178,6 +335,7 @@ async def vues(corps: Vues):
 
 class Reglages(BaseModel):
     shared_folder: str | None = None
+    catalogue_link: str | None = None
 
 
 @app.get("/api/settings")
@@ -192,6 +350,9 @@ async def lire_reglages():
         "home": str(home_dir()),
         "canChooseFolder": choisir_dossier is not None,
         "install": _etat_installation(),
+        "catalogue_link": valeurs.get("catalogue_link") or "",
+        "prepare_folder": valeurs.get("prepare_folder") or "",
+        "downloads": str(telechargements.dossier_telechargements()),
     }
 
 
@@ -236,6 +397,11 @@ async def installer_studio_dock(corps: Installation):
     except installation.ErreurInstallation as e:
         raise HTTPException(409, str(e)) from e
     ancien = dossier_installation_choisi()
+    if ancien is None and exe_dir() is not None and installation.meme(dossier, exe_dir()):
+        # Exe déjà posé dans le dossier autorisé (premier lancement) : il y reste, sans copie ni redémarrage
+        reglages.modifier(install_folder=str(dossier))
+        raccourci = await asyncio.to_thread(installation.creer_raccourci, Path(sys.executable))
+        return {"ok": True, "restarting": False, "folder": str(dossier), "shortcut": raccourci}
     # Apps déjà installées : dans l'ancien dossier choisi, ou (version 0.1) à côté de l'exe hors du partage
     source_apps = ancien
     if source_apps is None and exe_dir() is not None and (exe_dir() / "apps").is_dir() \
@@ -258,8 +424,12 @@ async def installer_studio_dock(corps: Installation):
 
 @app.put("/api/settings")
 async def modifier_reglages(corps: Reglages):
-    dossier = (corps.shared_folder or "").strip()
-    reglages.modifier(shared_folder=dossier or None)
+    valeurs: dict[str, Any] = {}
+    if corps.shared_folder is not None:
+        valeurs["shared_folder"] = corps.shared_folder.strip() or None
+    if corps.catalogue_link is not None:
+        valeurs["catalogue_link"] = corps.catalogue_link.strip() or None
+    reglages.modifier(**valeurs)
     _cache_partage.clear()
     return await lire_reglages()
 
@@ -275,6 +445,12 @@ async def choisir():
 @app.post("/api/dock/update")
 async def mettre_a_jour_studio_dock():
     catalogue = source.lire()
+    if source.origine == "online":
+        if not catalogue.studiodock.link:
+            raise HTTPException(409, "Le catalogue n'indique pas où télécharger Studio Dock.")
+        telech.attendre("studiodock")
+        winapi.ouvrir(catalogue.studiodock.link)
+        return {"ok": True, "restarting": False, "waiting": True}
     nouvelle = miseajour.version_disponible(catalogue, _partage_lisible())
     if nouvelle is None:
         raise HTTPException(409, "Aucune version plus récente de Studio Dock dans le dossier partagé.")
