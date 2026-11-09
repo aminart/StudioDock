@@ -64,7 +64,7 @@ def test_catalogue_invalide_signale_puis_ignore(client, maison):
     os.utime(archive, (time.time() - 10, time.time() - 10))
     etat = client.get("/api/apps").json()
     assert etat["source"] == "local"
-    assert "zip" in etat["online"]["error"]
+    assert "Catalogue illisible" in etat["online"]["error"]
     assert archive.exists()  # laissé en place : c'est à la personne de le retélécharger
 
 
@@ -145,9 +145,43 @@ def test_preparer_et_fabriquer_le_catalogue(client, maison, tmp_path):
         publie = json.loads(z.read("catalogue.json"))
     assert publie["apps"][0]["version"] == "3.1.0" and publie["apps"][0]["link"] == "https://sp/Proto"
     assert publie["link"] == LIEN_CATALOGUE and publie["published"]
+    import hashlib
+    assert publie["apps"][0]["size"] == (prep / "Proto" / "Proto-3.1.0.py").stat().st_size
+    assert publie["apps"][0]["sha256"] == hashlib.sha256((prep / "Proto" / "Proto-3.1.0.py").read_bytes()).hexdigest()
+    assert "_chemin" not in r.json()["apps"][0]
 
     # Le zip fabriqué est celui que les membres importent
     shutil.copyfile(archive, maison / "Telechargements" / archive.name)
     os.utime(maison / "Telechargements" / archive.name, (time.time() - 10, time.time() - 10))
     etat = client.get("/api/apps").json()
     assert etat["source"] == "online" and etat["apps"][0]["availableVersion"] == "3.1.0"
+
+
+def test_telechargement_incomplet_refuse(client, maison):
+    donnees = _catalogue(port_libre())
+    donnees["apps"][0]["size"] = (ICI / "fausse_app.py").stat().st_size + 1000  # le fichier publié est plus gros
+    _zip(maison / "Telechargements", donnees)
+    client.get("/api/apps")
+    client.post("/api/apps/proto/install")
+    fichier = maison / "Telechargements" / "Proto-1.2.0.py"
+    shutil.copyfile(ICI / "fausse_app.py", fichier)
+    os.utime(fichier, (time.time() - 10, time.time() - 10))
+    carte = next(a for a in client.get("/api/apps").json()["apps"] if a["id"] == "proto")
+    assert "incomplet" in carte["installError"]
+    assert not carte["installed"] and not carte["waiting"]
+    assert fichier.exists()  # laissé en place
+    assert not (maison / "apps" / "proto").exists()
+
+
+def test_empreinte_verifiee(client, maison):
+    donnees = _catalogue(port_libre())
+    donnees["apps"][0]["size"] = (ICI / "fausse_app.py").stat().st_size
+    donnees["apps"][0]["sha256"] = "0" * 64
+    _zip(maison / "Telechargements", donnees)
+    client.get("/api/apps")
+    client.post("/api/apps/proto/install")
+    fichier = maison / "Telechargements" / "Proto-1.2.0.py"
+    shutil.copyfile(ICI / "fausse_app.py", fichier)
+    os.utime(fichier, (time.time() - 10, time.time() - 10))
+    carte = next(a for a in client.get("/api/apps").json()["apps"] if a["id"] == "proto")
+    assert "différent" in carte["installError"]

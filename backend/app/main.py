@@ -125,7 +125,7 @@ def _importer_catalogue_telecharge() -> None:
         catalogue = telechargements.importer_catalogue(archive)
     except telechargements.ErreurCatalogue as e:
         _imports_refuses.add(cle)
-        telech.erreur_catalogue = f"{archive.name} : {e}"
+        telech.erreur_catalogue = f"Catalogue illisible, retéléchargez-le ({archive.name} : {e})"
         return
     telech.erreur_catalogue = None
     telech.annuler("catalogue")
@@ -147,13 +147,20 @@ def _recuperer_telechargements(catalogue: Catalogue) -> None:
         if trouvee is None:
             continue
         fichier = trouvee.chemin
+        telech.annuler(entree.id)
+        if probleme := telechargements.conforme(fichier, entree.size, entree.sha256):
+            installeur.signaler(entree, probleme)  # incomplet ou différent : rien n'est installé
+            continue
         nom = telechargements.nom_de_base(fichier) + fichier.suffix
-        if installeur.installer_fichier(entree, fichier, nom, lambda f=fichier: telechargements.retirer(f)):
-            telech.annuler(entree.id)
+        installeur.installer_fichier(entree, fichier, nom, lambda f=fichier: telechargements.retirer(f))
     if telech.en_attente("studiodock") and miseajour.remplacement_possible():
         trouvee = telech.studio_dock()
         if trouvee and miseajour.version_en_ligne(Catalogue(studiodock={"version": trouvee.version})):
             telech.annuler("studiodock")
+            dock = catalogue.studiodock
+            if probleme := telechargements.conforme(trouvee.chemin, dock.size, dock.sha256):
+                telech.erreur_catalogue = probleme
+                return
             miseajour.appliquer(trouvee, pilote.tout_arreter, lambda f=trouvee.chemin: telechargements.retirer(f))
 
 
@@ -278,6 +285,12 @@ def _dossier_preparation(brut: str) -> Path:
     return dossier
 
 
+def _public(etat: dict) -> dict:
+    """Sans les chemins internes (clés « _ »)."""
+    nettoyer = lambda d: {k: v for k, v in d.items() if not k.startswith("_")}  # noqa: E731
+    return {**etat, "apps": [nettoyer(a) for a in etat["apps"]], "studiodock": nettoyer(etat["studiodock"])}
+
+
 @app.post("/api/admin/catalogue")
 async def lire_preparation(corps: Dossier):
     """Préparer le catalogue : versions trouvées dans le dossier de préparation, liens déjà saisis."""
@@ -287,7 +300,7 @@ async def lire_preparation(corps: Dossier):
     except (OSError, ValueError) as e:
         raise HTTPException(409, f"catalogue.json : {getattr(e, 'args', [e])[0] if isinstance(e, OSError) else e}") from e
     reglages.modifier(prepare_folder=str(dossier))
-    return {**etat, "folder": str(dossier)}
+    return {**_public(etat), "folder": str(dossier)}
 
 
 @app.post("/api/admin/catalogue/build")
@@ -300,7 +313,7 @@ async def fabriquer_catalogue(corps: Fabrication):
         etat = await asyncio.to_thread(telechargements.preparer, dossier)
     except (OSError, ValueError) as e:
         raise HTTPException(409, f"Fabrication impossible : {e}") from e
-    return {**etat, "folder": str(dossier), "zip": str(archive)}
+    return {**_public(etat), "folder": str(dossier), "zip": str(archive)}
 
 
 @app.post("/api/admin/catalogue/show")

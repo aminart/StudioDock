@@ -41,6 +41,9 @@ def _copier(source: Path, cible: Path, suivi: Copie) -> None:
             sortie.write(bloc)
             fait += len(bloc)
             suivi.progres = min(99, int(fait * 100 / total))
+    if fait != source.stat().st_size:  # fichier encore en cours d'écriture pendant la copie
+        temporaire.unlink(missing_ok=True)
+        raise OSError("le fichier a changé pendant la copie (encore en cours de téléchargement ?). Réessayez.")
     shutil.copystat(source, temporaire)
     temporaire.replace(cible)
 
@@ -74,6 +77,11 @@ class Installeur:
                 return
             suivi = self.copies[app.id] = Copie()
         threading.Thread(target=self._travail, args=(app, disponible.chemin, suivi), daemon=True).start()
+
+    def signaler(self, app: AppEntry, erreur: str) -> None:
+        """Erreur affichée sur la carte de l'app (par exemple : téléchargement incomplet)."""
+        with self._verrou:
+            self.copies[app.id] = Copie(erreur=erreur, fini=True)
 
     def installer_fichier(self, app: AppEntry, source: Path, nom: str, apres: Callable[[], None]) -> bool:
         """Catalogue en ligne : installe le fichier arrivé dans Téléchargements, sous le nom `nom`, puis appelle

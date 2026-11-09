@@ -111,9 +111,10 @@ class Telechargements:
         cle = str(f)
         precedent = self._tailles.get(cle)
         self._tailles[cle] = (stat.st_size, stat.st_mtime)
-        if stat.st_size == 0:
+        if stat.st_size == 0 or en_cours_d_ecriture(f):
             return False
-        # Stable depuis le passage précédent, ou pas modifié depuis 3 secondes (Studio Dock vient de démarrer)
+        # Stable depuis le passage précédent, ou pas modifié depuis 3 secondes (Studio Dock vient de démarrer).
+        # Une copie par l'Explorateur garde la date d'origine : c'est le verrou ci-dessus qui la repère.
         return precedent == (stat.st_size, stat.st_mtime) or time.time() - stat.st_mtime > 3
 
     def fichiers(self, prefixe: str, accepte) -> list[Path]:
@@ -158,6 +159,44 @@ class Telechargements:
     def catalogue(self) -> Path | None:
         zips = self.fichiers(PREFIXE_CATALOGUE, lambda f: f.suffix.lower() == ".zip")
         return max(zips, key=lambda f: f.stat().st_mtime) if zips else None
+
+
+def en_cours_d_ecriture(f: Path) -> bool:
+    """Windows : un autre programme a encore le fichier ouvert en écriture (copie de l'Explorateur, navigateur,
+    antivirus) ; l'ouvrir sans partage échoue alors. Ailleurs : False."""
+    if sys.platform != "win32":
+        return False
+    import ctypes
+
+    GENERIC_READ, OPEN_EXISTING, INVALID = 0x80000000, 3, ctypes.c_void_p(-1).value
+    kernel32 = ctypes.windll.kernel32
+    kernel32.CreateFileW.restype = ctypes.c_void_p
+    poignee = kernel32.CreateFileW(str(f), GENERIC_READ, 0, None, OPEN_EXISTING, 0, None)  # 0 : aucun partage
+    if poignee in (None, INVALID):
+        return True
+    kernel32.CloseHandle(ctypes.c_void_p(poignee))
+    return False
+
+
+def empreinte(f: Path) -> str:
+    """SHA-256 d'un fichier (contrôle qu'un téléchargement est complet et identique à la version publiée)."""
+    import hashlib
+
+    h = hashlib.sha256()
+    with open(f, "rb") as entree:
+        for bloc in iter(lambda: entree.read(1024 * 1024), b""):
+            h.update(bloc)
+    return h.hexdigest()
+
+
+def conforme(f: Path, taille: int | None, sha256: str | None) -> str | None:
+    """None si le fichier correspond à la version publiée (taille, empreinte), sinon la raison."""
+    if taille is not None and f.stat().st_size != taille:
+        return (f"{f.name} fait {f.stat().st_size:,} octets au lieu de {taille:,} : téléchargement incomplet "
+                "ou fichier différent de celui publié. Retéléchargez-le.").replace(",", " ")
+    if sha256 and empreinte(f).lower() != sha256.lower():
+        return f"{f.name} est différent de la version publiée (empreinte). Retéléchargez-le."
+    return None
 
 
 def _version(f: Path) -> str | None:
@@ -248,6 +287,8 @@ def preparer(dossier: Path) -> dict:
         apps.append({"id": app.id, "name": app.name, "source": app.source or app.id, "mode": app.mode,
                      "found": trouvee.chemin.name if trouvee else None,
                      "version": trouvee.version if trouvee else app.version,
+                     "size": trouvee.chemin.stat().st_size if trouvee else None,
+                     "_chemin": str(trouvee.chemin) if trouvee else None,
                      "link": app.link or "", "icon": icone})
     dock = dossier / catalogue.studiodock.source
     fichiers = [f for f in dock.iterdir() if _commence_par(nom_de_base(f), "StudioDock") and _est_programme(f)] \
@@ -257,6 +298,8 @@ def preparer(dossier: Path) -> dict:
         "apps": apps,
         "studiodock": {"source": catalogue.studiodock.source, "found": trouvee.chemin.name if trouvee else None,
                        "version": trouvee.version if trouvee else catalogue.studiodock.version,
+                       "size": trouvee.chemin.stat().st_size if trouvee else None,
+                       "_chemin": str(trouvee.chemin) if trouvee else None,
                        "link": catalogue.studiodock.link or ""},
         "link": catalogue.link or "",
         "published": catalogue.published,
@@ -267,15 +310,26 @@ def fabriquer(dossier: Path, liens: dict[str, str], lien_dock: str, lien_catalog
     """Écrit les versions et les liens dans catalogue.json, puis fabrique studio-dock-catalogue.zip à côté."""
     etat = preparer(dossier)
     donnees = json.loads((dossier / CATALOGUE_PARTAGE).read_text(encoding="utf-8"))
-    versions = {a["id"]: a["version"] for a in etat["apps"]}
+    trouvees = {a["id"]: a for a in etat["apps"]}
+
+    def _publier(cible: dict, info: dict) -> None:
+        """Version, taille et empreinte du fichier publié : Studio Dock vérifie ainsi chaque téléchargement."""
+        if info.get("version"):
+            cible["version"] = info["version"]
+        if info.get("_chemin"):
+            cible["size"] = info["size"]
+            cible["sha256"] = empreinte(Path(info["_chemin"]))
+        else:
+            cible.pop("size", None)
+            cible.pop("sha256", None)
+
     for app in donnees.get("apps", []):
-        if app.get("id") in versions and versions[app["id"]]:
-            app["version"] = versions[app["id"]]
+        if app.get("id") in trouvees:
+            _publier(app, trouvees[app["id"]])
         if (lien := (liens.get(app.get("id")) or "").strip()):
             app["link"] = lien
     dock = donnees.setdefault("studiodock", {})
-    if etat["studiodock"]["version"]:
-        dock["version"] = etat["studiodock"]["version"]
+    _publier(dock, etat["studiodock"])
     if lien_dock.strip():
         dock["link"] = lien_dock.strip()
     if lien_catalogue.strip():

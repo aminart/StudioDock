@@ -182,7 +182,7 @@ const OnlineBar: React.FC<{ state: DockState; catalogue: CatalogueActions }> = (
   const erreur = online.error && (
     <div role="alert" className="flex items-start gap-2 rounded-md border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning-text">
       <IconAlert className="mt-0.5 shrink-0" />
-      <span>Catalogue téléchargé illisible, retéléchargez-le. <span className="font-mono text-[13px]">{online.error}</span></span>
+      <span>{online.error}</span>
     </div>
   );
   if (state.source === 'online') {
