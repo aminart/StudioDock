@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActionError, api } from './api';
 import type { PrepareState } from './types';
-import { IconAlert, IconBack, IconFolder, IconSpinner } from './ui';
+import { IconAlert, IconBack, IconFolder, IconSpinner, ScopeNote, SettingsTabs } from './ui';
 
 const input = 'h-10 min-w-0 rounded border border-line-strong bg-surface-2 px-3 font-mono text-[13px] text-ink focus:outline focus:outline-2 focus:outline-focus';
 
@@ -66,18 +66,18 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
   const missing = state ? state.apps.filter((a) => !a.link.trim() && !links[a.id]?.trim()).length : 0;
 
   return (
-    <div className="flex flex-col gap-7">
-      <a href="#/reglages" className="flex min-h-8 items-center gap-1.5 self-start text-sm text-ink-muted no-underline hover:text-ink">
-        <IconBack /> Réglages
+    <div className="flex flex-col gap-6">
+      <a href="#/" className="flex min-h-8 items-center gap-1.5 self-start text-sm text-ink-muted no-underline hover:text-ink">
+        <IconBack /> Mes applications
       </a>
-      <div className="flex flex-col gap-2">
-        <h1 className="m-0 text-[32px] font-bold leading-tight text-ink">Préparer le catalogue</h1>
-        <p className="m-0 max-w-[820px] text-[15px] text-ink-muted">
-          Pour une équipe dont le dossier est en ligne (SharePoint, Teams). Gardez sur votre poste une copie de ce dossier :
-          <span className="font-mono"> catalogue.json</span>, <span className="font-mono">icons/</span> et un sous-dossier par app avec son exe.
-          Studio Dock y lit les versions, vous collez les liens des dossiers en ligne, et il fabrique le fichier à mettre en ligne.
-        </p>
-      </div>
+      <h1 className="m-0 text-[30px] font-bold leading-tight text-ink">Réglages</h1>
+      <SettingsTabs current="equipe" />
+      <ScopeNote scope="equipe" />
+      <p className="m-0 max-w-[820px] text-[15px] text-ink-muted">
+        Pour la personne qui tient le catalogue de l'équipe. Gardez sur votre poste une copie du dossier en ligne :
+        <span className="font-mono"> catalogue.json</span>, <span className="font-mono">icons/</span> et un sous-dossier par app avec son exe
+        ou son installateur. Studio Dock y lit les versions, vous collez les liens des dossiers en ligne, et il fabrique le fichier à mettre en ligne.
+      </p>
 
       <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-6">
         <h2 className="m-0 text-[19px] font-bold text-ink">1 · Dossier de préparation</h2>

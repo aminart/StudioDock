@@ -4,6 +4,17 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+## [0.4.2] — 2026-11-12
+
+### Modifié
+
+- Réglages séparés en deux onglets : « Mon espace » (ce poste uniquement : lien du catalogue, dossier
+  d'installation) et « Préparer pour l'équipe » (le catalogue publié pour tous). Chaque onglet rappelle la portée
+  de ce qu'on y modifie.
+- Le dossier partagé Windows est désactivé pour l'instant : l'équipe n'a pas d'emplacement réseau commun et
+  utilise le catalogue en ligne. Un dossier réglé auparavant reste retirable.
+- L'en-tête reste visible au défilement.
+
 ## [0.4.1] — 2026-11-09
 
 ### Corrigé

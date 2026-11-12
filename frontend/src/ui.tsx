@@ -80,7 +80,7 @@ export const ThemeToggle: React.FC = () => {
 };
 
 export const Header: React.FC = () => (
-  <header className="border-b border-line bg-surface">
+  <header className="sticky top-0 z-30 border-b border-line bg-surface">
     <div className="mx-auto flex min-h-[72px] max-w-[1200px] items-center gap-3 px-6">
       <a href="#/" className="flex flex-grow items-center gap-3 no-underline">
         <DockLogo />
@@ -94,6 +94,42 @@ export const Header: React.FC = () => (
       <ThemeToggle />
     </div>
   </header>
+);
+
+/* ---------- Réglages : mon espace / l'équipe ---------- */
+
+/** Onglets des réglages : ce qui ne concerne que ce poste, et ce qui est préparé pour toute l'équipe. */
+export const SettingsTabs: React.FC<{ current: 'perso' | 'equipe' }> = ({ current }) => {
+  const tab = (id: 'perso' | 'equipe', href: string, label: string, hint: string) => (
+    <a href={href} aria-current={current === id ? 'page' : undefined}
+      className={`flex min-h-11 flex-col justify-center rounded border px-4 py-1.5 no-underline ${current === id
+        ? 'border-line-strong bg-surface text-ink' : 'border-transparent text-ink-muted hover:text-ink'}`}>
+      <span className="text-sm font-semibold">{label}</span>
+      <span className="text-[12px] text-ink-subtle">{hint}</span>
+    </a>
+  );
+  return (
+    <nav aria-label="Réglages" className="flex flex-wrap gap-1 self-start rounded-md border border-line bg-surface-2 p-1">
+      {tab('perso', '#/reglages', 'Mon espace', 'Ce poste uniquement')}
+      {tab('equipe', '#/catalogue', 'Préparer pour l\'équipe', 'Publié pour tous')}
+    </nav>
+  );
+};
+
+/** Rappelle la portée de ce qui est modifié sur la page. */
+export const ScopeNote: React.FC<{ scope: 'perso' | 'equipe' }> = ({ scope }) => (
+  scope === 'perso' ? (
+    <p className="m-0 flex items-start gap-2.5 rounded-md border border-line bg-surface px-4 py-3 text-sm text-ink-body">
+      {stroke(18, 'mt-0.5 shrink-0', <><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></>)}
+      <span><strong className="font-semibold text-ink">Réglages personnels.</strong> Ils ne concernent que ce poste et ne changent rien pour vos collègues.</span>
+    </p>
+  ) : (
+    <p className="m-0 flex items-start gap-2.5 rounded-md border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning-text">
+      {stroke(18, 'mt-0.5 shrink-0', <><circle cx="9" cy="8" r="3" /><path d="M3 20a6 6 0 0 1 12 0" /><circle cx="17" cy="9" r="2.5" /><path d="M15.5 14.2A5 5 0 0 1 21 19" /></>)}
+      <span><strong className="font-semibold">Pour toute l'équipe.</strong> Le catalogue fabriqué ici est celui que vos collègues recevront
+        dès que vous mettrez <span className="font-mono">studio-dock-catalogue.zip</span> en ligne. Rien n'est envoyé automatiquement.</span>
+    </p>
+  )
 );
 
 /* ---------- Pièces communes à la carte et à la fiche ---------- */
