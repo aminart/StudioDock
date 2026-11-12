@@ -4,7 +4,7 @@ import { InstallFolderForm } from './install';
 import type { DockApp, DockState, Settings } from './types';
 import {
   Actions, AppActions, AppIcon, AppNotice, IconAlert, IconBack, IconChevron, IconDownload, IconExternal, IconFolder, IconRefresh, IconSpinner,
-  PlatformContext, ProgressBar, StatusChip, StatusLine, TeamContext, UpdateBanner, UpdateButton, WaitingActions, where,
+  PlatformContext, ProgressBar, ScopeNote, SettingsTabs, StatusChip, StatusLine, TeamContext, UpdateBanner, UpdateButton, WaitingActions, where,
 } from './ui';
 
 /** Mes applications : installées sur ce poste, ou imposées à l'équipe (installation en cours ou en attente). */
@@ -446,68 +446,82 @@ export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'h
     : null;
 
   return (
-    <div className="flex flex-col gap-7">
+    <div className="flex flex-col gap-6">
       <a href="#/" className="flex min-h-8 items-center gap-1.5 self-start text-sm text-ink-muted no-underline hover:text-ink">
         <IconBack /> Mes applications
       </a>
-      <div className="flex flex-col gap-1.5">
-        <h1 className="m-0 text-[30px] font-bold leading-tight text-ink">Réglages</h1>
-        <p className="m-0 max-w-[680px] text-ink-muted">Où Studio Dock trouve les applications de l'équipe (dossier partagé), et où il les installe sur ce poste (votre dossier).</p>
-      </div>
-
-      <section className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
-        <div className="flex flex-col gap-1">
-          <h2 className="m-0 text-[19px] font-bold text-ink">Dossier partagé de l'équipe</h2>
-          <p className="m-0 text-sm text-ink-muted">
-            Contient <span className="font-mono">catalogue.json</span> et un sous-dossier par application, où sont déposées les nouvelles versions.
-            Les apps n'y sont jamais lancées : elles sont copiées sur ce poste.
-          </p>
-        </div>
-        <form className="flex flex-wrap gap-2.5" onSubmit={(e) => { e.preventDefault(); save(value.trim()); }}>
-          <label htmlFor="partage" className="sr-only">Chemin du dossier partagé</label>
-          <input id="partage" value={value} onChange={(e) => setValue(e.target.value)} placeholder={platform === 'mac' ? '/Volumes/Equipe UX' : '\\\\serveur\\Equipe UX  ou  Z:\\Equipe UX'}
-            className="h-11 min-w-0 flex-[1_1_320px] rounded border border-line-strong bg-surface-2 px-3.5 font-mono text-sm text-ink focus:outline focus:outline-2 focus:outline-focus" />
-          {settings?.canChooseFolder && (
-            <button type="button" onClick={choose} disabled={busy}
-              className="flex h-11 items-center gap-2 rounded border border-line-strong bg-surface px-4 font-medium text-ink-body hover:bg-surface-3">
-              <IconFolder /> Choisir…
-            </button>
-          )}
-          <button type="submit" disabled={busy || value.trim() === (settings?.shared_folder ?? '')}
-            className="flex h-11 items-center gap-2 rounded border-0 bg-primary px-5 font-medium text-primary-on hover:bg-primary-hover disabled:cursor-default disabled:bg-primary-disabled disabled:text-primary-on-disabled">
-            {busy && <IconSpinner />} Enregistrer
-          </button>
-        </form>
-        {status && (
-          <p className={`m-0 flex items-center gap-2 text-sm ${status.ok ? 'text-success-text' : 'text-warning-text'}`}>
-            {status.ok ? <span className="h-2 w-2 rounded-full bg-success" aria-hidden="true" /> : <IconAlert />} {status.text}
-            {settings?.reachable && (
-              <button type="button" onClick={() => openFolder('shared')} className="ml-1 border-0 bg-transparent p-0 text-accent underline">Ouvrir</button>
-            )}
-          </p>
-        )}
-        {message && <p role="status" className="m-0 text-sm text-ink-muted">{message}</p>}
-        {settings?.shared_folder && (
-          <button type="button" onClick={() => save('')} className="self-start border-0 bg-transparent p-0 text-sm text-ink-subtle underline">
-            Ne plus utiliser de dossier partagé
-          </button>
-        )}
-      </section>
+      <h1 className="m-0 text-[30px] font-bold leading-tight text-ink">Réglages</h1>
+      <SettingsTabs current="perso" />
+      <ScopeNote scope="perso" />
 
       <OnlineSection settings={settings} onSaved={(s) => { setSettings(s); onSaved(); }} />
 
       <InstallSection settings={settings} platform={platform} openHome={() => openFolder('home')} onRestart={onRestart} />
 
-      <section className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-line-strong bg-surface px-6 py-4">
-        <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-0.5">
-          <h2 className="m-0 text-[17px] font-bold text-ink">Vous préparez le catalogue de l'équipe ?</h2>
-          <p className="m-0 text-sm text-ink-muted">Versions, liens des dossiers en ligne et fichier <span className="font-mono">studio-dock-catalogue.zip</span> à mettre en ligne.</p>
-        </div>
-        <a href="#/catalogue" className="flex h-10 items-center rounded border border-line-strong bg-surface px-4 text-sm font-medium text-ink-body no-underline hover:bg-surface-3">
-          Préparer le catalogue
-        </a>
-      </section>
+      <SharedFolderSection settings={settings} value={value} setValue={setValue} busy={busy} save={save} choose={choose}
+        status={status} message={message} openShared={() => openFolder('shared')} platform={platform} />
     </div>
+  );
+};
+
+/* ---------- Dossier partagé Windows (désactivé pour l'instant) ---------- */
+
+/** L'équipe n'a pas encore d'emplacement commun sur le réseau Windows : la section reste visible mais inactive.
+ * Passer à true quand un dossier réseau commun existera. */
+const DOSSIER_PARTAGE_ACTIF = false;
+
+const SharedFolderSection: React.FC<{
+  settings: Settings | null; value: string; setValue: (v: string) => void; busy: boolean;
+  save: (folder: string) => void; choose: () => void; status: { ok: boolean; text: string } | null;
+  message: string | null; openShared: () => void; platform: 'windows' | 'mac' | 'linux';
+}> = ({ settings, value, setValue, busy, save, choose, status, message, openShared, platform }) => {
+  const actif = DOSSIER_PARTAGE_ACTIF;
+  return (
+    <section aria-disabled={!actif} className={`flex flex-col gap-4 rounded-lg border p-6 ${actif ? 'border-line bg-surface' : 'border-dashed border-line-strong bg-surface-2'}`}>
+      <div className="flex flex-col gap-1">
+        <h2 className={`m-0 flex flex-wrap items-center gap-2.5 text-[19px] font-bold ${actif ? 'text-ink' : 'text-ink-muted'}`}>
+          Dossier partagé Windows
+          {!actif && <span className="rounded-full border border-line-strong px-2.5 py-0.5 text-[12px] font-medium text-ink-subtle">Indisponible pour l'instant</span>}
+        </h2>
+        <p className="m-0 text-sm text-ink-muted">
+          {actif
+            ? <>Dossier réseau de l'équipe avec <span className="font-mono">catalogue.json</span> et un sous-dossier par application. Les apps n'y sont jamais lancées : elles sont copiées sur ce poste.</>
+            : <>L'équipe n'a pas d'emplacement commun sur le réseau Windows : Studio Dock utilise le catalogue en ligne ci-dessus.
+              Cette option sera activée quand un dossier réseau commun existera.</>}
+        </p>
+      </div>
+      <form className="flex flex-wrap gap-2.5" onSubmit={(e) => { e.preventDefault(); if (actif) save(value.trim()); }}>
+        <label htmlFor="partage" className="sr-only">Chemin du dossier partagé</label>
+        <input id="partage" value={value} onChange={(e) => setValue(e.target.value)} disabled={!actif}
+          placeholder={platform === 'mac' ? '/Volumes/Equipe UX' : '\\\\serveur\\Equipe UX  ou  Z:\\Equipe UX'}
+          className="h-11 min-w-0 flex-[1_1_320px] rounded border border-line-strong bg-surface-2 px-3.5 font-mono text-sm text-ink focus:outline focus:outline-2 focus:outline-focus disabled:cursor-not-allowed disabled:opacity-60" />
+        {settings?.canChooseFolder && (
+          <button type="button" onClick={choose} disabled={busy || !actif}
+            className="flex h-11 items-center gap-2 rounded border border-line-strong bg-surface px-4 font-medium text-ink-body hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-60">
+            <IconFolder /> Choisir…
+          </button>
+        )}
+        <button type="submit" disabled={!actif || busy || value.trim() === (settings?.shared_folder ?? '')}
+          className="flex h-11 items-center gap-2 rounded border-0 bg-primary px-5 font-medium text-primary-on hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-primary-disabled disabled:text-primary-on-disabled">
+          {busy && <IconSpinner />} Enregistrer
+        </button>
+      </form>
+      {actif && status && (
+        <p className={`m-0 flex items-center gap-2 text-sm ${status.ok ? 'text-success-text' : 'text-warning-text'}`}>
+          {status.ok ? <span className="h-2 w-2 rounded-full bg-success" aria-hidden="true" /> : <IconAlert />} {status.text}
+          {settings?.reachable && (
+            <button type="button" onClick={openShared} className="ml-1 border-0 bg-transparent p-0 text-accent underline">Ouvrir</button>
+          )}
+        </p>
+      )}
+      {message && <p role="status" className="m-0 text-sm text-ink-muted">{message}</p>}
+      {/* Un dossier réglé auparavant reste retirable, même option désactivée */}
+      {settings?.shared_folder && (
+        <button type="button" onClick={() => save('')} disabled={busy} className="self-start border-0 bg-transparent p-0 text-sm text-accent underline">
+          Ne plus utiliser de dossier partagé
+        </button>
+      )}
+    </section>
   );
 };
 
@@ -533,11 +547,11 @@ const OnlineSection: React.FC<{ settings: Settings | null; onSaved: (s: Settings
   return (
     <section className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
       <div className="flex flex-col gap-1">
-        <h2 className="m-0 text-[19px] font-bold text-ink">Catalogue en ligne de l'équipe</h2>
+        <h2 className="m-0 text-[19px] font-bold text-ink">Où trouver les apps de l'équipe</h2>
         <p className="m-0 text-sm text-ink-muted">
-          Quand l'équipe n'a qu'un dossier en ligne (SharePoint, Teams), sans dossier partagé : le navigateur télécharge
-          le catalogue et les applications, Studio Dock les récupère dans vos Téléchargements et les installe.
-          Le lien est repris du catalogue dès le premier import.
+          Le lien du catalogue en ligne de l'équipe (SharePoint, Teams). Le navigateur télécharge le catalogue et les
+          applications, Studio Dock les récupère dans vos Téléchargements et les installe sur ce poste.
+          Le lien est repris du catalogue dès le premier import ; le modifier ici ne change rien pour les autres.
         </p>
       </div>
       <form className="flex flex-wrap gap-2.5" onSubmit={(e) => { e.preventDefault(); save(); }}>
@@ -575,7 +589,7 @@ const InstallSection: React.FC<{
       <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-6">
         <div className="flex flex-col gap-1">
           <h2 className="m-0 text-[19px] font-bold text-ink">Emplacement des applications</h2>
-          <p className="m-0 text-sm text-ink-muted">Les applications installées depuis le dossier partagé sont copiées ici, une par dossier, et lancées depuis cet endroit.</p>
+          <p className="m-0 text-sm text-ink-muted">Les applications installées sur ce poste sont rangées ici, une par dossier, et lancées depuis cet endroit.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <span className="min-w-0 flex-grow break-all rounded bg-surface-2 px-3.5 py-2.5 font-mono text-sm">{settings?.home ?? '…'}</span>
@@ -594,7 +608,7 @@ const InstallSection: React.FC<{
         <h2 className="m-0 text-[19px] font-bold text-ink">Votre dossier d'installation</h2>
         <p className="m-0 text-sm text-ink-muted">
           Le dossier de ce poste où sont installés Studio Dock et vos applications (une par dossier), et d'où elles sont lancées.
-          Propre à chaque membre de l'équipe, distinct du dossier partagé.
+          Propre à chaque membre de l'équipe.
         </p>
       </div>
       {!editing ? (
