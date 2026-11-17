@@ -195,7 +195,7 @@ version valide reste affichée, avec l'erreur.
 | `exe` | Nom de l'exe sans `.exe` ni version (`SpecGenerator`). |
 | `path` | *(facultatif)* Emplacement imposé, fichier ou dossier, relatif au dossier de Studio Dock. |
 | `install_name` | *(native, facultatif)* Nom dans « Applications installées », si différent de `name`. |
-| `ai` | L'app utilise des modèles d'IA. |
+| `ai` | L'app utilise des modèles d'IA : elle reçoit un modèle dans Réglages › Modèles d'IA. |
 | `icon` | Fichier relatif au dossier de Studio Dock (sinon icône livrée) ; `style` : `logo` (l'image remplit la vignette avec son propre fond, cas des icônes de la suite) ou `symbole` (pictogramme posé sur un fond Night Navy). Carré, SVG ou PNG ≥ 256 px. |
 | `tagline`, `description`, `points`, `tutorial`, `links` | Carte de l'accueil et fiche de l'app. |
 
@@ -207,6 +207,41 @@ Le contrat commun, déjà en place dans SpecGen, AuditErgo et DocAnalyser :
 - `--no-browser` : ne pas ouvrir le navigateur ;
 - `--version` ;
 - `GET /health` → `{"status": "ok", "app": "<id>", "name": "…", "version": "X.Y.Z"}`, dès que le serveur tourne.
+
+## Modèles d'IA communs aux apps
+
+Réglages › **Modèles d'IA** : les connexions aux modèles sont réglées une fois, sur ce poste, et toutes les apps
+de la suite (`"ai": true` dans le catalogue) les reprennent. Même modèle que l'écran Réglages de DocAnalyser :
+
+- **services d'IA** compatibles OpenAI (passerelle de l'entreprise, Mistral, OpenAI, Gemini…) : nom, adresse,
+  clé facultative, certificat de l'entreprise facultatif, modèles, fenêtre de contexte, test avec diagnostic ;
+- **modèles locaux avec Ollama** : détection d'Ollama, modèles installés, téléchargement d'un modèle de la
+  bibliothèque d'Ollama, choix des modèles proposés aux apps (connexion « Ollama (ce poste) », sans clé) ;
+- **modèle de chaque app** : un modèle par défaut, un autre pour une app donnée, ou « Configuration propre à
+  l'app » (l'app garde ses propres réglages).
+
+La clé est chiffrée avec le compte Windows (DPAPI) ; les apps, lancées sous le même compte, la déchiffrent. Elle
+n'est jamais renvoyée à l'interface. Sur Mac, comme dans les apps, elle est seulement encodée.
+
+Fichiers, dans `%LOCALAPPDATA%\StudioDock\ia` (Mac : `~/Library/Application Support/StudioDock/ia`) :
+`connexions.json` (format 1) et `certificats/<id>.crt`. Studio Dock donne ce dossier aux apps qu'il lance
+(variable `STUDIODOCK_IA`) ; une app lancée seule le trouve au même endroit.
+
+**Côté app** : copier [`contrat/studiodock_ia.py`](contrat/studiodock_ia.py) (bibliothèque standard seulement) et
+l'utiliser à la place de ses propres réglages quand Studio Dock fournit une connexion :
+
+```python
+import studiodock_ia
+choix = studiodock_ia.pour_app("monapp")   # connexion + modèle choisis pour l'app, ou None
+if choix:
+    base, cle, ca, modele = choix.connexion.api_base, choix.connexion.api_key, choix.connexion.ca_bundle, choix.model
+toutes = studiodock_ia.connexions()        # toutes les connexions (app qui propose plusieurs modèles)
+```
+
+Ordre suivi par SpecGen, AuditErgo et DocAnalyser : fichier `.env` de l'app > Studio Dock > réglages de l'app.
+Dans ces apps, on choisit au lancement un autre des modèles de Studio Dock (DocAnalyser : « Nouvelle analyse » ;
+SpecGen et AuditErgo : champ « Modèle d'IA », envoyé dans l'en-tête `X-StudioDock-Model`), et leurs Réglages
+fixent le modèle par défaut parmi ceux de Studio Dock.
 
 ## Développement
 

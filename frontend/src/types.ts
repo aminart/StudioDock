@@ -107,3 +107,69 @@ export interface InstallState {
   suggested: string;
   running: string | null;
 }
+
+/* ---------- Modèles d'IA communs aux apps ---------- */
+
+export interface ConnectionTest {
+  ok: boolean;
+  field: 'api_base' | 'api_key' | 'certificate' | 'models' | null;
+  title: string;
+  message: string;
+  available?: string[] | null;
+  missing?: string[];
+  at: string;
+}
+
+export interface AiConnection {
+  id: string;
+  name: string;
+  provider: 'openai' | 'ollama';
+  api_base: string;
+  has_api_key: boolean;
+  api_key_hint: string;
+  certificate: { name: string; imported_at?: string; expires_at?: string | null } | null;
+  models: string[];
+  context_tokens: number;
+  max_output_tokens: number;
+  last_test: ConnectionTest | null;
+}
+
+/** Choix d'un modèle : une connexion et un de ses modèles, ou la configuration propre à l'app. */
+export type AiChoice = { connection: string; model: string } | { own: true };
+
+export interface AiApp {
+  id: string;
+  name: string;
+  installed: boolean;
+  iconUrl: string | null;
+  choice: AiChoice | null;
+}
+
+export interface AiState {
+  connections: AiConnection[];
+  default: { connection: string; model: string } | null;
+  apps: AiApp[];
+  folder: string;
+  created?: string;
+}
+
+export interface ConnectionForm {
+  name: string;
+  api_base: string;
+  /** null : garder la clé enregistrée ; '' : aucune clé. */
+  api_key: string | null;
+  models: string[];
+  context_tokens: number | null;
+  last_test?: ConnectionTest;
+}
+
+export interface OllamaModel { name: string; size: string; parameters: string; quantization: string; family: string }
+export interface OllamaPull { model: string; status: string; completed: number; total: number; error: string | null; finished: boolean }
+export interface OllamaState {
+  address: string;
+  running: boolean;
+  version: string | null;
+  models: OllamaModel[];
+  pulls: OllamaPull[];
+  connection: AiConnection | null;
+}

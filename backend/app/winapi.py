@@ -73,9 +73,14 @@ def environnement_propre() -> dict[str, str]:
     efface en quittant. Un exe PyInstaller lancé avec ces variables héritées (Studio Dock relancé après son
     installation ou sa mise à jour, ou une app) peut réutiliser ce dossier au lieu du sien, et planter quand il
     disparaît (« No module named '_multiprocessing' »). PYINSTALLER_RESET_ENVIRONMENT demande un départ neuf.
+    STUDIODOCK_IA indique aux apps où Studio Dock range les modèles d'IA communs.
     """
     env = {k: v for k, v in os.environ.items() if not (k.startswith("_PYI_") or k == "_MEIPASS2")}
     env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+    # Modèles d'IA réglés dans Studio Dock : les apps lisent ce dossier (voir ia.py)
+    from app import ia
+
+    env["STUDIODOCK_IA"] = str(ia.dossier())
     return env
 
 

@@ -4,6 +4,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+## [0.5.0] — 2026-11-17
+
+### Ajouté
+
+- Réglages › Modèles d'IA : connexions aux modèles réglées une fois et reprises par toutes les apps de la suite
+  (SpecGen, AuditErgo, DocAnalyser). Même modèle que DocAnalyser : services compatibles OpenAI avec clé chiffrée,
+  certificat de l'entreprise, modèles et test de connexion. Modèles locaux avec Ollama : détection, modèles
+  installés, téléchargement d'un modèle, choix des modèles proposés. Modèle par défaut, modèle propre à une app,
+  ou configuration propre à l'app. Les apps lisent ces réglages avec `contrat/studiodock_ia.py`.
+
 ## [0.4.2] — 2026-11-12
 
 ### Modifié
