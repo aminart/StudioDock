@@ -532,7 +532,7 @@ export const AiPage: React.FC = () => {
         <div className="flex flex-col gap-1">
           <h2 id="choix-h" className="m-0 text-[19px] font-bold text-ink">Modèle utilisé par les apps</h2>
           <p className="m-0 text-sm text-ink-muted">Le modèle par défaut sert à toutes les apps, sauf celles pour lesquelles vous en choisissez un autre.
-            DocAnalyser propose en plus tous les modèles ci-dessous au moment de lancer une analyse.</p>
+            Dans les apps, on peut aussi prendre un autre de ces modèles au moment de lancer une génération ou une analyse.</p>
         </div>
         {state ? <Assignments state={state} onChanged={setState} /> : <p className="m-0 flex items-center gap-2 text-sm text-ink-muted"><IconSpinner /> Chargement…</p>}
       </section>

@@ -239,6 +239,9 @@ toutes = studiodock_ia.connexions()        # toutes les connexions (app qui prop
 ```
 
 Ordre suivi par SpecGen, AuditErgo et DocAnalyser : fichier `.env` de l'app > Studio Dock > réglages de l'app.
+Dans ces apps, on choisit au lancement un autre des modèles de Studio Dock (DocAnalyser : « Nouvelle analyse » ;
+SpecGen et AuditErgo : champ « Modèle d'IA », envoyé dans l'en-tête `X-StudioDock-Model`), et leurs Réglages
+fixent le modèle par défaut parmi ceux de Studio Dock.
 
 ## Développement
 
