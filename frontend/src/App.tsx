@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActionError, api } from './api';
 import { InstallScreen, Restarting } from './install';
+import { AiPage } from './ia';
 import { PreparePage } from './prepare';
 import { AppPage, Home, SettingsPage } from './screens';
 import type { DockApp, DockState } from './types';
@@ -88,6 +89,7 @@ export const App: React.FC = () => {
   const appId = route.startsWith('#/app/') ? decodeURIComponent(route.slice(6)) : null;
   const settingsRoute = route === '#/reglages';
   const prepareRoute = route === '#/catalogue';
+  const iaRoute = route === '#/ia';
   const team = !!state && state.source !== 'local';
   const current = appId ? state?.apps.find((a) => a.id === appId) : undefined;
 
@@ -149,6 +151,8 @@ export const App: React.FC = () => {
         )}
         {state?.needsInstall && !settingsRoute ? (
           <InstallScreen onRestart={setMoving} restartingIn={moving} />
+        ) : iaRoute ? (
+          <AiPage />
         ) : prepareRoute ? (
           <PreparePage canChoose={!!state?.canChooseFolder} />
         ) : settingsRoute ? (

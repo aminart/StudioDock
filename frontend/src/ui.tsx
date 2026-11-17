@@ -99,8 +99,8 @@ export const Header: React.FC = () => (
 /* ---------- Réglages : mon espace / l'équipe ---------- */
 
 /** Onglets des réglages : ce qui ne concerne que ce poste, et ce qui est préparé pour toute l'équipe. */
-export const SettingsTabs: React.FC<{ current: 'perso' | 'equipe' }> = ({ current }) => {
-  const tab = (id: 'perso' | 'equipe', href: string, label: string, hint: string) => (
+export const SettingsTabs: React.FC<{ current: 'perso' | 'ia' | 'equipe' }> = ({ current }) => {
+  const tab = (id: 'perso' | 'ia' | 'equipe', href: string, label: string, hint: string) => (
     <a href={href} aria-current={current === id ? 'page' : undefined}
       className={`flex min-h-11 flex-col justify-center rounded border px-4 py-1.5 no-underline ${current === id
         ? 'border-line-strong bg-surface text-ink' : 'border-transparent text-ink-muted hover:text-ink'}`}>
@@ -111,6 +111,7 @@ export const SettingsTabs: React.FC<{ current: 'perso' | 'equipe' }> = ({ curren
   return (
     <nav aria-label="Réglages" className="flex flex-wrap gap-1 self-start rounded-md border border-line bg-surface-2 p-1">
       {tab('perso', '#/reglages', 'Mon espace', 'Ce poste uniquement')}
+      {tab('ia', '#/ia', 'Modèles d\'IA', 'Pour toutes vos apps')}
       {tab('equipe', '#/catalogue', 'Préparer pour l\'équipe', 'Publié pour tous')}
     </nav>
   );

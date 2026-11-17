@@ -1,8 +1,8 @@
-import type { DockApp, DockState, PrepareState, Settings } from './types';
+import type { AiChoice, AiState, ConnectionForm, ConnectionTest, DockApp, DockState, OllamaState, PrepareState, Settings } from './types';
 
 export class ActionError extends Error {}
 
-async function call<T>(method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown): Promise<T> {
+async function call<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<T> {
   const response = await fetch(path, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
@@ -46,3 +46,28 @@ export const api = {
   updateDock: () => call<{ ok: boolean; restarting: boolean; waiting?: boolean }>('POST', '/api/dock/update'),
   openLink: (url: string) => call<{ ok: boolean }>('POST', '/api/open-link', { url }),
 };
+
+/** Modèles d'IA communs aux apps (Réglages › Modèles d'IA). */
+export const iaApi = {
+  state: () => call<AiState>('GET', '/api/ia'),
+  create: (form: ConnectionForm) => call<AiState>('POST', '/api/ia/connections', form),
+  update: (id: string, form: ConnectionForm) => call<AiState>('PUT', `/api/ia/connections/${id}`, form),
+  remove: (id: string) => call<AiState>('DELETE', `/api/ia/connections/${id}`),
+  test: (body: ConnectionForm & { id?: string; certificate_b64?: string }) => call<ConnectionTest>('POST', '/api/ia/test', body),
+  uploadCertificate: (id: string, name: string, data: string) =>
+    call<AiState>('POST', `/api/ia/connections/${id}/certificate`, { name, data }),
+  removeCertificate: (id: string) => call<AiState>('DELETE', `/api/ia/connections/${id}/certificate`),
+  choose: (body: { default: AiState['default']; apps: Record<string, AiChoice> }) => call<AiState>('PUT', '/api/ia/choices', body),
+  ollama: (address?: string) => call<OllamaState>('GET', `/api/ia/ollama${address ? `?address=${encodeURIComponent(address)}` : ''}`),
+  pull: (model: string, address: string) => call<OllamaState>('POST', '/api/ia/ollama/pull', { model, address }),
+  offerOllama: (address: string, models: string[], context_tokens: number | null) =>
+    call<AiState & { ollama: OllamaState }>('PUT', '/api/ia/ollama', { address, models, context_tokens }),
+};
+
+/** Contenu d'un fichier en base64 (certificat). */
+export const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
+  reader.onerror = () => reject(reader.error);
+  reader.readAsDataURL(file);
+});

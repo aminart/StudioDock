@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app import installation, miseajour, reglages, telechargements, winapi
+from app import installation, miseajour, reglages, routes_ia, telechargements, winapi
 from app.catalogue import AppEntry, Catalogue, Source, fichier_icone, partage_accessible
 from app.info import (APP_ID, APP_NAME, EMPAQUETE, PLATEFORME, REPO_DIR, VERSION, dossier_installation_choisi, exe_dir,
                       home_dir, logs_dir, resources_dir)
@@ -563,6 +563,19 @@ async def icone(app_id: str):
     if not chemin:
         raise HTTPException(404)
     return FileResponse(chemin, headers={"Cache-Control": "no-cache"})
+
+
+# --- Modèles d'IA communs aux apps (routes_ia.py) ------------------------------------------------------------
+
+def _apps_ia() -> list[dict[str, Any]]:
+    """Apps du catalogue qui utilisent l'IA : chacune peut recevoir son modèle."""
+    return [{"id": a.id, "name": a.name, "installed": installee(a)[0],
+             "iconUrl": f"/api/apps/{a.id}/icon" if fichier_icone(a, source.partage) else None}
+            for a in _visibles(source.lire()) if a.ai]
+
+
+routes_ia.apps_ia = _apps_ia
+app.include_router(routes_ia.router)
 
 
 def _dossier_interface() -> Path:
