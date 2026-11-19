@@ -1,4 +1,4 @@
-import type { AiChoice, AiState, ConnectionForm, ConnectionTest, DockApp, DockState, OllamaState, PrepareState, Settings } from './types';
+import type { AiChoice, CatalogueApp, CatalogueEdit, AiState, ConnectionForm, ConnectionTest, DockApp, DockState, OllamaState, PrepareState, Settings } from './types';
 
 export class ActionError extends Error {}
 
@@ -45,6 +45,19 @@ export const api = {
   chooseFolder: () => call<{ path: string | null }>('POST', '/api/settings/choose-folder'),
   updateDock: () => call<{ ok: boolean; restarting: boolean; waiting?: boolean }>('POST', '/api/dock/update'),
   openLink: (url: string) => call<{ ok: boolean }>('POST', '/api/open-link', { url }),
+};
+
+/** Préparer pour l'équipe : catalogue.json édité par formulaire. */
+export const catalogueApi = {
+  read: (folder: string) => call<CatalogueEdit>('POST', '/api/admin/catalogue/apps', { folder }),
+  create: (folder: string) => call<CatalogueEdit>('POST', '/api/admin/catalogue/create', { folder }),
+  save: (folder: string, id: string | null, app: CatalogueApp) =>
+    call<CatalogueEdit>('PUT', '/api/admin/catalogue/apps', { folder, id: id ?? undefined, app }),
+  remove: (folder: string, id: string) => call<CatalogueEdit>('POST', '/api/admin/catalogue/apps/delete', { folder, id }),
+  move: (folder: string, id: string, direction: number) =>
+    call<CatalogueEdit>('POST', '/api/admin/catalogue/apps/move', { folder, id, direction }),
+  uploadIcon: (folder: string, id: string, name: string, data: string) =>
+    call<{ file: string }>('POST', '/api/admin/catalogue/icon', { folder, id, name, data }),
 };
 
 /** Modèles d'IA communs aux apps (Réglages › Modèles d'IA). */

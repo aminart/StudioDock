@@ -173,3 +173,37 @@ export interface OllamaState {
   pulls: OllamaPull[];
   connection: AiConnection | null;
 }
+
+/* ---------- Préparer pour l'équipe : édition du catalogue ---------- */
+
+export interface CatalogueApp {
+  id: string;
+  name: string;
+  kind: 'web' | 'native';
+  port: number | null;
+  ai: boolean;
+  exe: string;
+  source: string;
+  mode: 'auto' | 'optionnel' | 'masque';
+  install_name?: string | null;
+  tagline: string;
+  description: string;
+  points: string[];
+  tutorial: { title: string; text: string }[];
+  links: { label: string; url: string }[];
+  icon: { file: string | null; style: 'logo' | 'symbole' };
+  iconFound?: boolean;
+  sourceFound?: boolean;
+  /** Fiche refusée par la validation (catalogue.json modifié à la main). */
+  invalid?: string;
+}
+
+export interface CatalogueEdit {
+  folder: string;
+  exists: boolean;
+  apps: CatalogueApp[];
+  studiodock: { source: string };
+  /** Le dossier édité est le dossier partagé de l'équipe : les changements y sont visibles tout de suite. */
+  isShared: boolean;
+  saved?: string;
+}
