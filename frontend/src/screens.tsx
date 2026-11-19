@@ -464,11 +464,11 @@ export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'h
   );
 };
 
-/* ---------- Dossier partagé Windows (désactivé pour l'instant) ---------- */
+/* ---------- Dossier partagé Windows ---------- */
 
-/** L'équipe n'a pas encore d'emplacement commun sur le réseau Windows : la section reste visible mais inactive.
- * Passer à true quand un dossier réseau commun existera. */
-const DOSSIER_PARTAGE_ACTIF = false;
+/** Dossier réseau commun de l'équipe (lecteur réseau ou \\serveur\partage). À false, la section reste visible
+ * mais inactive, pour une équipe qui n'a que le catalogue en ligne. */
+const DOSSIER_PARTAGE_ACTIF = true;
 
 const SharedFolderSection: React.FC<{
   settings: Settings | null; value: string; setValue: (v: string) => void; busy: boolean;

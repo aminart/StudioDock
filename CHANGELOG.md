@@ -4,6 +4,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+## [0.5.1] — 2026-11-19
+
+### Modifié
+
+- Le dossier partagé Windows de l'équipe (lecteur réseau, par exemple Q:) se règle à nouveau dans Réglages ›
+  Mon espace. Quand il est réglé, il passe avant le catalogue en ligne.
+
 ## [0.5.0] — 2026-11-17
 
 ### Ajouté
