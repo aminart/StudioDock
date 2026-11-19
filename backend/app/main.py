@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app import installation, miseajour, reglages, routes_ia, telechargements, winapi
+from app import installation, miseajour, reglages, routes_edition, routes_ia, telechargements, winapi
 from app.catalogue import AppEntry, Catalogue, Source, fichier_icone, partage_accessible
 from app.info import (APP_ID, APP_NAME, EMPAQUETE, PLATEFORME, REPO_DIR, VERSION, dossier_installation_choisi, exe_dir,
                       home_dir, logs_dir, resources_dir)
@@ -576,6 +576,7 @@ def _apps_ia() -> list[dict[str, Any]]:
 
 routes_ia.apps_ia = _apps_ia
 app.include_router(routes_ia.router)
+app.include_router(routes_edition.router)
 
 
 def _dossier_interface() -> Path:

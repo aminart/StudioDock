@@ -127,8 +127,8 @@ export const ScopeNote: React.FC<{ scope: 'perso' | 'equipe' }> = ({ scope }) =>
   ) : (
     <p className="m-0 flex items-start gap-2.5 rounded-md border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning-text">
       {stroke(18, 'mt-0.5 shrink-0', <><circle cx="9" cy="8" r="3" /><path d="M3 20a6 6 0 0 1 12 0" /><circle cx="17" cy="9" r="2.5" /><path d="M15.5 14.2A5 5 0 0 1 21 19" /></>)}
-      <span><strong className="font-semibold">Pour toute l'équipe.</strong> Le catalogue fabriqué ici est celui que vos collègues recevront
-        dès que vous mettrez <span className="font-mono">studio-dock-catalogue.zip</span> en ligne. Rien n'est envoyé automatiquement.</span>
+      <span><strong className="font-semibold">Pour toute l'équipe.</strong> Le catalogue préparé ici est celui que vos collègues reçoivent :
+        tout de suite s'il est dans le dossier partagé de l'équipe, ou quand vous mettez <span className="font-mono">studio-dock-catalogue.zip</span> en ligne.</span>
     </p>
   )
 );

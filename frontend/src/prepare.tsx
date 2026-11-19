@@ -1,11 +1,13 @@
 import React from 'react';
-import { ActionError, api } from './api';
-import type { PrepareState } from './types';
+import { ActionError, api, catalogueApi } from './api';
+import { CatalogueApps } from './catalogue-editor';
+import type { CatalogueEdit, PrepareState } from './types';
 import { IconAlert, IconBack, IconFolder, IconSpinner, ScopeNote, SettingsTabs } from './ui';
 
 const input = 'h-10 min-w-0 rounded border border-line-strong bg-surface-2 px-3 font-mono text-[13px] text-ink focus:outline focus:outline-2 focus:outline-focus';
 
-/** Préparer le catalogue en ligne (administratrice) : versions trouvées, liens des dossiers en ligne, zip à publier. */
+/** Préparer pour l'équipe (administratrice) : les apps du catalogue et leur fiche, par formulaire ; pour un catalogue
+ * en ligne, versions trouvées, liens des dossiers en ligne et zip à publier. */
 export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => {
   const [folder, setFolder] = React.useState('');
   const [state, setState] = React.useState<PrepareState | null>(null);
@@ -15,6 +17,8 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [built, setBuilt] = React.useState<string | null>(null);
+  const [edit, setEdit] = React.useState<CatalogueEdit | null>(null);
+  const [sharedFolder, setSharedFolder] = React.useState('');
 
   const apply = (s: PrepareState) => {
     setState(s);
@@ -24,14 +28,23 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
     setCatalogueLink(s.link);
   };
 
+  /** Versions et liens du catalogue en ligne : relus après chaque modification des fiches. */
+  const loadOnline = async (path: string) => {
+    try { apply(await api.prepare(path)); } catch { setState(null); }
+  };
+
   const load = async (path: string) => {
     if (!path.trim()) return;
     setBusy(true);
     setError(null);
     setBuilt(null);
     try {
-      apply(await api.prepare(path.trim()));
+      const e = await catalogueApi.read(path.trim());
+      setEdit(e);
+      setFolder(e.folder);
+      if (e.exists) await loadOnline(e.folder); else setState(null);
     } catch (e) {
+      setEdit(null);
       setState(null);
       setError(e instanceof ActionError ? e.message : 'Lecture impossible.');
     } finally {
@@ -39,8 +52,27 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
     }
   };
 
+  const create = async () => {
+    if (!edit) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const e = await catalogueApi.create(edit.folder);
+      setEdit(e);
+      await loadOnline(e.folder);
+    } catch (e) {
+      setError(e instanceof ActionError ? e.message : 'Création impossible.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   React.useEffect(() => {
-    api.settings().then((s) => { if (s.prepare_folder) { setFolder(s.prepare_folder); load(s.prepare_folder); } }).catch(() => undefined);
+    api.settings().then((s) => {
+      setSharedFolder(s.shared_folder ?? '');
+      const start = s.prepare_folder || s.shared_folder;
+      if (start) { setFolder(start); load(start); }
+    }).catch(() => undefined);
   }, []);
 
   const choose = async () => {
@@ -74,16 +106,16 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
       <SettingsTabs current="equipe" />
       <ScopeNote scope="equipe" />
       <p className="m-0 max-w-[820px] text-[15px] text-ink-muted">
-        Pour la personne qui tient le catalogue de l'équipe. Gardez sur votre poste une copie du dossier en ligne :
-        <span className="font-mono"> catalogue.json</span>, <span className="font-mono">icons/</span> et un sous-dossier par app avec son exe
-        ou son installateur. Studio Dock y lit les versions, vous collez les liens des dossiers en ligne, et il fabrique le fichier à mettre en ligne.
+        Pour la personne qui tient le catalogue de l'équipe : les apps proposées et leur fiche, sans écrire de JSON.
+        Le dossier du catalogue est le dossier partagé de l'équipe (par exemple <span className="font-mono">Q:\Studio Dock</span>)
+        ou, pour un catalogue en ligne (SharePoint, Teams), votre copie locale de ce dossier.
       </p>
 
       <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-6">
-        <h2 className="m-0 text-[19px] font-bold text-ink">1 · Dossier de préparation</h2>
+        <h2 className="m-0 text-[19px] font-bold text-ink">1 · Dossier du catalogue</h2>
         <form className="flex flex-wrap gap-2.5" onSubmit={(e) => { e.preventDefault(); load(folder); }}>
-          <label htmlFor="preparation" className="sr-only">Dossier de préparation</label>
-          <input id="preparation" value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="C:\Users\vous\Documents\Studio Dock - équipe"
+          <label htmlFor="preparation" className="sr-only">Dossier du catalogue</label>
+          <input id="preparation" value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="Q:\Studio Dock  ou  C:\Users\vous\Documents\Studio Dock - équipe"
             className={`${input} h-11 flex-[1_1_320px] text-sm`} />
           {canChoose && (
             <button type="button" onClick={choose} disabled={busy}
@@ -93,9 +125,15 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
           )}
           <button type="submit" disabled={busy || !folder.trim()}
             className="flex h-11 items-center gap-2 rounded border border-line-strong bg-surface px-4 font-medium text-ink-body hover:bg-surface-3 disabled:opacity-50">
-            Lire le dossier
+            {busy && <IconSpinner />} Ouvrir
           </button>
         </form>
+        {sharedFolder && folder.trim() !== sharedFolder && (
+          <button type="button" onClick={() => { setFolder(sharedFolder); load(sharedFolder); }}
+            className="self-start border-0 bg-transparent p-0 text-sm text-accent underline">
+            Ouvrir le dossier partagé de l'équipe ({sharedFolder})
+          </button>
+        )}
       </section>
 
       {error && (
@@ -104,11 +142,43 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
         </p>
       )}
 
+      {edit && !edit.exists && (
+        <section className="flex flex-col gap-3 rounded-lg border border-dashed border-line-strong bg-surface p-6">
+          <h2 className="m-0 text-[19px] font-bold text-ink">Pas encore de catalogue dans ce dossier</h2>
+          <p className="m-0 text-sm text-ink-muted">
+            Studio Dock le crée avec les apps de la suite (SpecGen, AuditErgo, DocAnalyser, Mapline), leur fiche et leur icône,
+            et un sous-dossier par app où déposer ses versions. Vous les modifiez ensuite ici.
+          </p>
+          <button type="button" onClick={create} disabled={busy}
+            className="flex h-11 items-center gap-2 self-start rounded border-0 bg-primary px-5 font-medium text-primary-on hover:bg-primary-hover disabled:opacity-60">
+            {busy && <IconSpinner />} Créer le catalogue
+          </button>
+        </section>
+      )}
+
+      {edit?.exists && (
+        <section className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
+          <div className="flex flex-col gap-1">
+            <h2 className="m-0 text-[19px] font-bold text-ink">2 · Applications</h2>
+            <p className="m-0 text-sm text-ink-muted">L'ordre est celui des cartes dans Studio Dock. Chaque enregistrement met à jour catalogue.json.</p>
+          </div>
+          {edit.isShared && (
+            <p className="m-0 flex items-start gap-2 rounded-md border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning-text">
+              <IconAlert className="mt-0.5 shrink-0" />
+              <span>C'est le dossier partagé de l'équipe : chaque enregistrement est visible tout de suite chez vos collègues.
+                Pour publier une version, déposez son exe dans le sous-dossier de l'app.</span>
+            </p>
+          )}
+          <CatalogueApps state={edit} onChanged={(e) => { setEdit(e); loadOnline(e.folder); }} />
+        </section>
+      )}
+
       {state && (
         <section className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
           <div className="flex flex-col gap-1">
-            <h2 className="m-0 text-[19px] font-bold text-ink">2 · Versions et liens</h2>
+            <h2 className="m-0 text-[19px] font-bold text-ink">3 · Catalogue en ligne : versions et liens</h2>
             <p className="m-0 text-sm text-ink-muted">
+              Seulement pour un catalogue en ligne (SharePoint, Teams) ; inutile avec le dossier partagé Windows.
               Pour chaque dossier en ligne : « Copier le lien », accès « Personnes de votre organisation ». Le lien est ouvert
               dans le navigateur quand un membre clique sur Installer ou Mettre à jour.
             </p>
@@ -184,7 +254,7 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
 
       {built && state && (
         <section role="status" className="flex flex-col gap-3 rounded-lg border border-line bg-success-soft p-6 text-success-text">
-          <h2 className="m-0 text-[19px] font-bold">3 · À mettre en ligne</h2>
+          <h2 className="m-0 text-[19px] font-bold">4 · À mettre en ligne</h2>
           <p className="m-0 text-sm">Catalogue fabriqué : <span className="font-mono">{built}</span></p>
           <ol className="m-0 flex flex-col gap-1 pl-5 text-sm">
             <li>Déposez <span className="font-mono">studio-dock-catalogue.zip</span> dans le dossier en ligne, à la place de l'ancien.</li>

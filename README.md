@@ -23,8 +23,9 @@ les **copie sur le poste** de chacun : les apps ne sont jamais lancées depuis l
 - **Publier une version** : déposer le nouvel exe dans le sous-dossier de l'app (les anciennes versions peuvent rester ;
   la plus récente est proposée). Chez chacun, la carte affiche « Version X disponible » ; les apps imposées à l'équipe
   (`"mode": "auto"`) sont mises à jour d'office quand elles ne sont pas lancées.
-- **Ajouter une app** : sa fiche dans `catalogue.json` (avec `"source"` : son sous-dossier) et son exe dans ce
-  sous-dossier ; elle apparaît chez chacun dans « Disponibles pour vous », avec le badge « Nouveau ».
+- **Ajouter une app** : Réglages › Préparer pour l'équipe › « + Ajouter une app » (fiche par formulaire, sans
+  écrire de JSON), puis son exe dans son sous-dossier ; elle apparaît chez chacun dans « Disponibles pour vous »,
+  avec le badge « Nouveau ». « Créer le catalogue » prépare un dossier vide avec les apps de la suite.
 - **Retirer une app de la liste** : `"mode": "masque"`.
 - **Mettre à jour Studio Dock** : déposer `StudioDock-X.Y.Z.exe` dans `StudioDock\` ; chacun voit « Studio Dock X.Y.Z
   est disponible » et le remplace d'un clic (redémarrage automatique). Sur Mac, le bandeau ouvre le dossier.

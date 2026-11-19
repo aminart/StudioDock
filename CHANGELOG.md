@@ -4,7 +4,17 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
-## [0.5.1] — 2026-11-19
+## [0.6.0] — 2026-11-19
+
+### Ajouté
+
+- Préparer pour l'équipe › Applications : le catalogue de l'équipe s'édite par formulaire, sans écrire de JSON.
+  « Créer le catalogue » le crée avec les apps de la suite (fiches, icônes, un sous-dossier par app) ; chaque app
+  se modifie (nom, type, IA, mode pour l'équipe, icône importée, accroche, description, points forts, prise en
+  main, liens), s'ajoute, se déplace ou se retire. Identifiant, programme, sous-dossier et port libre sont déduits
+  du nom. Chaque enregistrement est validé avant d'écrire catalogue.json (copie de la version précédente en
+  catalogue.json.bak). Fonctionne pour le dossier partagé Windows (changements visibles tout de suite) comme
+  pour la copie locale du catalogue en ligne.
 
 ### Modifié
 
