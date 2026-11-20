@@ -247,7 +247,7 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
             </div>
             <p className="m-0 text-sm text-ink-muted">
               Les apps qui s'ouvrent dans le navigateur s'arrêtent quand vous fermez Studio Dock : gardez-le ouvert pendant que vous travaillez.
-              Ce tutoriel reste accessible en bas de la page.
+              La visite guidée vous montre ensuite chaque élément de la page ; elle et ce tutoriel restent accessibles en bas de la page.
             </p>
           </>
         );
@@ -272,9 +272,14 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
         <span className="flex-grow" />
         {step > 0 && <button type="button" onClick={() => setStep(step - 1)} className={secondary}>Précédent</button>}
         {last ? (
-          <button type="button" onClick={() => finish(undefined, true)} disabled={closing} className={primary}>
-            {closing && <IconSpinner />} {toInstall.length ? `Installer et voir mes applications` : 'Voir mes applications'}
-          </button>
+          <>
+            <button type="button" onClick={() => finish('#/visite', true)} disabled={closing} className={secondary}>
+              Faire la visite guidée
+            </button>
+            <button type="button" onClick={() => finish(undefined, true)} disabled={closing} className={primary}>
+              {closing && <IconSpinner />} {toInstall.length ? 'Installer et voir mes applications' : 'Voir mes applications'}
+            </button>
+          </>
         ) : (
           <button type="button" onClick={() => setStep(step + 1)} className={primary}>
             {steps[step] === 'Les applications de l\'équipe' && source !== 'plus-tard' && !teamOk ? 'Continuer sans' : 'Suivant'}

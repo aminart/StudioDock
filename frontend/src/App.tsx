@@ -4,6 +4,7 @@ import { InstallScreen, Restarting } from './install';
 import { AiPage } from './ia';
 import { PreparePage } from './prepare';
 import { AppPage, Home, SettingsPage } from './screens';
+import { Tour } from './tour';
 import { Welcome } from './welcome';
 import type { DockApp, DockState } from './types';
 import { Actions, Header, IconAlert, IconDownload, PlatformContext, TeamContext } from './ui';
@@ -92,6 +93,7 @@ export const App: React.FC = () => {
   const prepareRoute = route === '#/catalogue';
   const iaRoute = route === '#/ia';
   const welcomeRoute = route === '#/bienvenue';
+  const tourRoute = route === '#/visite';
   const team = !!state && state.source !== 'local';
   const current = appId ? state?.apps.find((a) => a.id === appId) : undefined;
 
@@ -171,14 +173,18 @@ export const App: React.FC = () => {
             <p>Application inconnue. <a href="#/" className="text-accent">Retour à mes applications</a></p>
           )
         ) : (
-          <Home state={state} actions={actions} pending={pending} catalogue={catalogue} />
+          <>
+            <Home state={state} actions={actions} pending={pending} catalogue={catalogue} />
+            {tourRoute && <Tour onClose={() => { window.location.hash = '#/'; }} />}
+          </>
         )}
       </main>
       <footer className="mx-auto box-border w-full max-w-[1200px] px-6 pb-6">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-line pt-4 text-[13px] text-ink-subtle">
           <span>Studio Dock {state ? `v${state.version}` : ''}</span>
           <span>Les apps web s'arrêtent quand vous fermez Studio Dock.</span>
-          <span className="ml-auto flex gap-4">
+          <span data-tour="pied" className="ml-auto flex gap-4">
+            <a href="#/visite" className="text-accent no-underline hover:underline">Visite guidée</a>
             <a href="#/bienvenue" className="text-accent no-underline hover:underline">Revoir le tutoriel</a>
             <button type="button" onClick={() => run(null, () => api.openFolder('home'))} className="border-0 bg-transparent p-0 text-accent hover:underline">Dossier d'installation</button>
             <button type="button" onClick={() => actions.logs()} className="border-0 bg-transparent p-0 text-accent hover:underline">Journaux</button>

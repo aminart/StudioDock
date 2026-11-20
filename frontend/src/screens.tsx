@@ -27,7 +27,7 @@ const CardMenu: React.FC<{ app: DockApp; actions: Actions }> = ({ app, actions }
   const item = 'flex min-h-10 w-full items-center gap-2.5 rounded-sm border-0 bg-transparent px-3 text-left text-sm text-ink-body hover:bg-surface-3';
   const removable = team && app.installed;
   return (
-    <div ref={ref} className="relative -mr-2 -mt-1.5">
+    <div ref={ref} data-tour="menu" className="relative -mr-2 -mt-1.5">
       <button type="button" onClick={() => setOpen(!open)} aria-label={`Plus d'actions pour ${app.name}`} aria-haspopup="menu" aria-expanded={open}
         className="flex h-9 w-9 items-center justify-center rounded border-0 bg-transparent text-ink-subtle hover:bg-surface-3 hover:text-ink">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="19" r="1.8" /></svg>
@@ -64,11 +64,11 @@ const CardMenu: React.FC<{ app: DockApp; actions: Actions }> = ({ app, actions }
 const AppCard: React.FC<{ app: DockApp; actions: Actions; pending: boolean }> = ({ app, actions, pending }) => {
   const on = app.state === 'on';
   return (
-    <article className={`flex min-h-[268px] flex-col gap-4 rounded-lg p-[22px] ${on
+    <article data-tour="carte" className={`flex min-h-[268px] flex-col gap-4 rounded-lg p-[22px] ${on
       ? 'border-[1.5px] border-accent bg-gradient-to-b from-accent-softer to-surface'
       : 'border border-line bg-surface hover:border-line-strong'}`}>
       <div className="flex items-start justify-between">
-        <a href={`#/app/${app.id}`} aria-label={`Fiche de ${app.name}`} className="rounded-[13px] shadow-[0_6px_14px_-6px_rgba(27,29,42,0.35)]">
+        <a href={`#/app/${app.id}`} data-tour="fiche" aria-label={`Fiche de ${app.name}`} className="rounded-[13px] shadow-[0_6px_14px_-6px_rgba(27,29,42,0.35)]">
           <AppIcon app={app} size={56} />
         </a>
         <CardMenu app={app} actions={actions} />
@@ -80,7 +80,7 @@ const AppCard: React.FC<{ app: DockApp; actions: Actions; pending: boolean }> = 
         {app.tagline && <p className="clamp-2 m-0 text-sm leading-[1.45] text-ink-muted">{app.tagline}</p>}
       </div>
       <AppNotice app={app} actions={actions} compact />
-      <div className="flex flex-col gap-3">
+      <div data-tour="etat" className="flex flex-col gap-3">
         <StatusLine app={app} />
         <ProgressBar app={app} />
         <div className="flex gap-2">
@@ -144,7 +144,7 @@ const Summary: React.FC<{ apps: DockApp[] }> = ({ apps }) => {
   const updates = apps.filter((a) => a.update).length;
   if (!on && !updates) return null;
   return (
-    <div className="flex gap-2">
+    <div data-tour="resume" className="flex gap-2">
       {on > 0 && (
         <span className="flex h-8 items-center gap-2 rounded-full bg-success-soft px-3 text-[13px] font-medium text-success-text">
           <span className="h-2 w-2 rounded-full bg-success" aria-hidden="true" />{on} {on > 1 ? 'apps ouvertes' : 'app ouverte'}
@@ -187,7 +187,7 @@ const OnlineBar: React.FC<{ state: DockState; catalogue: CatalogueActions }> = (
   );
   if (state.source === 'online') {
     return (
-      <div className="flex flex-col gap-3">
+      <div data-tour="en-ligne" className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3 text-sm text-ink-muted">
           <span>Catalogue de l'équipe{online.published ? ` du ${formatDate(online.published)}` : ''}</span>
           {!online.waiting && (
@@ -247,7 +247,7 @@ export const Home: React.FC<{ state: DockState; actions: Actions; pending: Set<s
         </div>
       )}
       {available.length > 0 && (
-        <section aria-labelledby="dispo" className="mt-4 flex flex-col gap-4">
+        <section aria-labelledby="dispo" data-tour="dispo" className="mt-4 flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <h2 id="dispo" className="m-0 flex items-center gap-2.5 text-[21px] font-bold leading-snug text-ink">
               Disponibles pour vous
@@ -420,7 +420,10 @@ export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'h
       <h1 className="m-0 text-[30px] font-bold leading-tight text-ink">Réglages</h1>
       <SettingsTabs current="perso" />
       <ScopeNote scope="perso" />
-      <a href="#/bienvenue" className="-mt-2 self-start text-sm text-accent no-underline hover:underline">Revoir le tutoriel de première connexion</a>
+      <span className="-mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+        <a href="#/visite" className="text-accent no-underline hover:underline">Visite guidée de l'accueil</a>
+        <a href="#/bienvenue" className="text-accent no-underline hover:underline">Revoir le tutoriel de première connexion</a>
+      </span>
       {error && <p role="alert" className="m-0 text-sm text-warning-text">{error}</p>}
 
       <InstallSection settings={settings} platform={platform} openHome={() => openFolder('home')} onRestart={onRestart} />
