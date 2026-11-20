@@ -22,7 +22,7 @@ const STEPS: Step[] = [
   { target: 'dispo', title: 'Disponibles pour vous', text: 'Les apps proposées par l\'équipe que vous n\'avez pas encore. « Installer » les copie dans votre dossier ; le badge « Nouveau » signale les dernières arrivées.' },
   { target: 'reglages', title: 'Réglages', text: 'Votre dossier d\'applications, l\'endroit où l\'équipe range les siennes, et les modèles d\'IA communs à toutes vos apps.' },
   { target: 'theme', title: 'Clair ou sombre', text: 'Passez de l\'affichage clair à l\'affichage sombre.' },
-  { target: 'pied', title: 'En bas de page', text: 'Relancer cette visite ou le tutoriel, ouvrir votre dossier d\'installation et les journaux à transmettre en cas de souci.' },
+  { target: 'pied', title: 'En bas de page', text: 'Relancer cette visite ou le tutoriel, et ouvrir les journaux à transmettre en cas de souci. Votre dossier d\'applications se trouve dans Réglages › Mon espace.' },
   { title: 'C\'est tout !', text: 'Gardez Studio Dock ouvert pendant que vous travaillez : les apps qui s\'ouvrent dans le navigateur s\'arrêtent avec lui. Cette visite se relance en bas de la page.' },
 ];
 

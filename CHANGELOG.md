@@ -11,6 +11,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 - Réglages › Mon espace en deux parties : « 1 · Mes applications » (votre dossier sur ce poste, avec le dossier
   de chaque app) et « 2 · Les applications de l'équipe », avec le choix dossier réseau Windows (par défaut) ou
   dossier en ligne ; la source utilisée est signalée, et choisir le dossier en ligne retire le dossier réseau.
+- Le lien « Dossier d'installation » quitte le pied de page : votre dossier se présente et s'ouvre dans
+  Réglages › Mon espace › Mes applications. Le pied de page garde « Journaux ».
 
 ### Corrigé
 

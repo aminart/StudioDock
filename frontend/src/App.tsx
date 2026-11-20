@@ -186,7 +186,6 @@ export const App: React.FC = () => {
           <span data-tour="pied" className="ml-auto flex gap-4">
             <a href="#/visite" className="text-accent no-underline hover:underline">Visite guidée</a>
             <a href="#/bienvenue" className="text-accent no-underline hover:underline">Revoir le tutoriel</a>
-            <button type="button" onClick={() => run(null, () => api.openFolder('home'))} className="border-0 bg-transparent p-0 text-accent hover:underline">Dossier d'installation</button>
             <button type="button" onClick={() => actions.logs()} className="border-0 bg-transparent p-0 text-accent hover:underline">Journaux</button>
           </span>
         </div>
