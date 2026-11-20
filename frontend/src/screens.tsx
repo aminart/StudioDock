@@ -4,7 +4,7 @@ import { InstallFolderForm } from './install';
 import type { DockApp, DockState, Settings } from './types';
 import {
   Actions, AppActions, AppIcon, AppNotice, IconAlert, IconBack, IconChevron, IconDownload, IconExternal, IconFolder, IconRefresh, IconSpinner,
-  PlatformContext, ProgressBar, ScopeNote, SettingsTabs, StatusChip, StatusLine, TeamContext, UpdateButton, shortPath, WaitingActions, where,
+  PlatformContext, ProgressBar, ScopeNote, SectionTitle, SettingsTabs, StatusChip, StatusLine, TeamContext, UpdateButton, shortPath, WaitingActions, where,
 } from './ui';
 
 /** Où s'ouvre l'app, en mots courants. */
@@ -169,23 +169,45 @@ const gridAvailable = { gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1f
 /** Pastilles de résumé : apps ouvertes, mises à jour disponibles. */
 const Summary: React.FC<{ apps: DockApp[] }> = ({ apps }) => {
   const on = apps.filter((a) => a.state === 'on').length;
-  const updates = apps.filter((a) => a.update).length;
-  if (!on && !updates) return null;
+  const updates = apps.filter((a) => a.update);
+  if (!on && !updates.length) return null;
+  // Amène à la première carte à mettre à jour, focus sur son bouton
+  const goToUpdate = () => {
+    const el = updates.map((a) => document.getElementById(`maj-${a.id}`)).find(Boolean);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.focus({ preventScroll: true });
+  };
   return (
-    <div data-tour="resume" className="flex gap-2">
+    <div data-tour="resume" className="flex flex-wrap gap-2">
       {on > 0 && (
         <span className="flex h-8 items-center gap-2 rounded-full bg-success-soft px-3 text-[13px] font-medium text-success-text">
           <span className="h-2 w-2 rounded-full bg-success" aria-hidden="true" />{on} {on > 1 ? 'apps ouvertes' : 'app ouverte'}
         </span>
       )}
-      {updates > 0 && (
-        <span className="flex h-8 items-center gap-2 rounded-full bg-accent-soft px-3 text-[13px] font-medium text-accent-ink">
-          <IconRefresh size={14} />{updates} {updates > 1 ? 'mises à jour' : 'mise à jour'}
-        </span>
+      {updates.length > 0 && (
+        <button type="button" onClick={goToUpdate}
+          aria-label={`${updates.length} ${updates.length > 1 ? 'mises à jour disponibles' : 'mise à jour disponible'} : aller à ${updates.map((a) => a.name).join(', ')}`}
+          className="flex h-8 items-center gap-2 rounded-full border border-transparent bg-accent-soft px-3 text-[13px] font-medium text-accent-ink hover:border-accent">
+          <IconRefresh size={14} />{updates.length} {updates.length > 1 ? 'mises à jour' : 'mise à jour'} : {updates.map((a) => a.name).join(', ')}
+        </button>
       )}
     </div>
   );
 };
+
+/** Apps proposées par l'équipe sans version publiée : une ligne, chaque nom mène à sa fiche. */
+const Soon: React.FC<{ apps: DockApp[] }> = ({ apps }) => (
+  <p className="m-0 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-ink-muted">
+    <span>Bientôt dans l'équipe :</span>
+    {apps.map((a, i) => (
+      <span key={a.id} className="inline-flex items-center gap-1.5">
+        <AppIcon app={a} size={20} />
+        <a href={`#/app/${a.id}`} className="text-ink-body no-underline hover:underline">{a.name}</a>{i < apps.length - 1 ? ',' : ''}
+      </span>
+    ))}
+  </p>
+);
 
 /** Catalogue en ligne : date du catalogue, vérification des mises à jour, import du premier catalogue. */
 export type CatalogueActions = { check: () => void; cancel: () => void };
@@ -253,11 +275,14 @@ const OnlineBar: React.FC<{ state: DockState; catalogue: CatalogueActions }> = (
 export const Home: React.FC<{ state: DockState; actions: Actions; pending: Set<string>; catalogue: CatalogueActions }> = ({ state, actions, pending, catalogue }) => {
   const team = state.source !== 'local';
   const mine = state.apps.filter((a) => isMine(a, team));
-  const available = state.apps.filter((a) => !isMine(a, team));
+  const others = state.apps.filter((a) => !isMine(a, team));
+  // Pas encore de version publiée : rien à faire, regroupées sur une ligne « Bientôt »
+  const soon = others.filter((a) => !a.availableVersion && a.progress === null && !a.waiting);
+  const available = others.filter((a) => !soon.includes(a));
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-        <div className="flex flex-[1_1_360px] flex-col gap-2">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           <h1 className="m-0 text-[32px] font-bold leading-tight text-ink">Mes applications</h1>
           <p className="m-0 max-w-[680px] text-[15px] text-ink-muted">Vos outils de design, lancés et mis à jour depuis un seul endroit.</p>
         </div>
@@ -286,8 +311,10 @@ export const Home: React.FC<{ state: DockState; actions: Actions; pending: Set<s
           <div className="grid gap-5" style={gridAvailable}>
             {available.map((app) => <AvailableCard key={app.id} app={app} actions={actions} />)}
           </div>
+          {soon.length > 0 && <Soon apps={soon} />}
         </section>
       )}
+      {available.length === 0 && soon.length > 0 && <Soon apps={soon} />}
     </div>
   );
 };
@@ -469,10 +496,6 @@ export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'h
       <h1 className="m-0 text-[30px] font-bold leading-tight text-ink">Réglages</h1>
       <SettingsTabs current="perso" />
       <ScopeNote scope="perso" />
-      <span className="-mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
-        <a href="#/visite" className="text-accent no-underline hover:underline">Visite guidée de l'accueil</a>
-        <a href="#/bienvenue" className="text-accent no-underline hover:underline">Revoir le tutoriel de première connexion</a>
-      </span>
       {error && <p role="alert" className="m-0 text-sm text-warning-text">{error}</p>}
 
       <InstallSection settings={settings} platform={platform} openHome={() => openFolder('home')} onRestart={onRestart} />
@@ -481,7 +504,8 @@ export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'h
         onSaved={(s) => { setSettings(s); onSaved(); }} />
 
       {settings && (
-        <section className="flex flex-col gap-2 rounded-lg border border-line bg-surface px-6 py-5">
+        <section aria-labelledby="avance-h" className="flex flex-col gap-3 rounded-lg border border-line bg-surface px-6 py-5">
+          <h2 id="avance-h" className="m-0 text-[13px] font-semibold uppercase tracking-wide text-ink-subtle">Option avancée</h2>
           <label className="flex cursor-pointer items-start gap-3">
             <input type="checkbox" className="mt-1 h-4 w-4" checked={settings.catalogue_admin}
               onChange={async (e) => { setSettings(await api.saveCatalogueAdmin(e.target.checked)); onSaved(); }} />
@@ -492,6 +516,14 @@ export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'h
           </label>
         </section>
       )}
+
+      <section aria-labelledby="aide-h" className="flex flex-col gap-2 rounded-lg bg-surface-2 px-6 py-5">
+        <h2 id="aide-h" className="m-0 text-[15px] font-bold text-ink">Aide</h2>
+        <span className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+          <a href="#/visite" className="text-accent no-underline hover:underline">Visite guidée de l'accueil</a>
+          <a href="#/bienvenue" className="text-accent no-underline hover:underline">Revoir le tutoriel de première connexion</a>
+        </span>
+      </section>
     </div>
   );
 };
@@ -500,15 +532,7 @@ export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'h
 
 type Source = 'reseau' | 'en-ligne';
 
-const sectionTitle = (n: number, title: string, subtitle: string) => (
-  <div className="flex flex-col gap-1">
-    <h2 className="m-0 flex items-center gap-2.5 text-[19px] font-bold text-ink">
-      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-3 text-[14px]" aria-hidden="true">{n}</span>
-      {title}
-    </h2>
-    <p className="m-0 text-sm text-ink-muted">{subtitle}</p>
-  </div>
-);
+const sectionTitle = (n: number, title: string, subtitle: string) => <SectionTitle n={n} title={title} subtitle={subtitle} />;
 
 const TeamSection: React.FC<{
   settings: Settings | null; platform: 'windows' | 'mac' | 'linux'; openShared: () => void; onSaved: (s: Settings) => void;

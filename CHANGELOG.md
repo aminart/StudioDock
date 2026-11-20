@@ -30,6 +30,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
   Réglages › Modèles d'IA de Studio Dock. « En bref » indique le modèle utilisé par l'app, avec un lien
   « Changer ».
 - Le bouton « Réglages » de l'en-tête montre qu'on est dans les réglages.
+- « Ouvrir » et « Afficher » prennent le même style que « Lancer » : un seul bouton principal par carte.
+- Accueil : les pastilles de résumé passent sous le titre ; « 1 mise à jour : SpecGen » mène à la carte et à son
+  bouton « Mettre à jour ». Les apps de l'équipe sans version publiée ne prennent plus une carte : une ligne
+  « Bientôt dans l'équipe : Mapline » les regroupe.
+- Modèles d'IA : sections numérotées dans l'ordre où on les règle (1 · Services d'IA, 2 · Ollama, 3 · Modèle
+  utilisé par les apps) ; le choix des modèles n'apparaît qu'une fois un service ou Ollama réglé.
+- Préparer pour l'équipe : avec le dossier réseau, l'étape « Catalogue en ligne » est repliée derrière
+  « Publier aussi un catalogue en ligne… » ; elle reste ouverte pour un catalogue en ligne.
+- Mon espace : les liens vers la visite et le tutoriel sont regroupés dans un bloc « Aide » en bas de page, et la
+  case « Je gère le catalogue de l'équipe » est présentée comme option avancée.
 - Les exemples de saisie (chemins, liens) sont écrits sous les champs, et le texte indicatif des champs passe
   au contraste AA.
 

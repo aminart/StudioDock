@@ -17,7 +17,7 @@ const STEPS: Step[] = [
   { target: 'etat', title: 'Son état et ses boutons', text: 'L\'état indique si l\'app est prête, en cours de démarrage, ouverte ou occupée. « Lancer » l\'ouvre ; une fois lancée, « Ouvrir » la ramène au premier plan et « Arrêter » la ferme, après confirmation.' },
   { target: 'maj', title: 'Une mise à jour', text: 'Quand l\'équipe publie une nouvelle version, « Mettre à jour » apparaît sous les boutons de la carte et sur sa fiche : un clic et l\'app est à jour. Si elle est ouverte, Studio Dock demande avant de la fermer.' },
   { target: 'menu', title: 'Plus d\'actions', text: 'Le menu ⋮ : sa fiche, son dossier sur ce poste, ou la retirer de ce poste (vos documents et réglages sont gardés).' },
-  { target: 'resume', title: 'En un coup d\'œil', text: 'Combien d\'apps sont ouvertes et combien de mises à jour vous attendent.' },
+  { target: 'resume', title: 'En un coup d\'œil', text: 'Combien d\'apps sont ouvertes et quelles mises à jour vous attendent : un clic sur les mises à jour mène à la carte concernée.' },
   { target: 'en-ligne', title: 'Le catalogue en ligne', text: 'Votre équipe partage ses apps en ligne : vérifiez ici les mises à jour du catalogue.' },
   { target: 'dispo', title: 'Disponibles pour vous', text: 'Les apps proposées par l\'équipe que vous n\'avez pas encore. « Installer » les copie dans votre dossier ; le badge « Nouveau » signale les dernières arrivées.' },
   { target: 'reglages', title: 'Réglages', text: 'Votre dossier d\'applications, l\'endroit où l\'équipe range les siennes, et les modèles d\'IA communs à toutes vos apps.' },

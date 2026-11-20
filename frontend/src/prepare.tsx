@@ -19,6 +19,8 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
   const [built, setBuilt] = React.useState<string | null>(null);
   const [edit, setEdit] = React.useState<CatalogueEdit | null>(null);
   const [sharedFolder, setSharedFolder] = React.useState('');
+  // Étape « catalogue en ligne » : ouverte d'office seulement si l'équipe passe par un dossier en ligne
+  const [onlineOpen, setOnlineOpen] = React.useState(false);
 
   const apply = (s: PrepareState) => {
     setState(s);
@@ -26,6 +28,7 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
     setLinks(Object.fromEntries(s.apps.map((a) => [a.id, a.link])));
     setDockLink(s.studiodock.link);
     setCatalogueLink(s.link);
+    if (s.link) setOnlineOpen(true);
   };
 
   /** Versions et liens du catalogue en ligne : relus après chaque modification des fiches. */
@@ -70,6 +73,7 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
   React.useEffect(() => {
     api.settings().then((s) => {
       setSharedFolder(s.shared_folder ?? '');
+      if (s.catalogue_link && !s.shared_folder) setOnlineOpen(true);
       const start = s.prepare_folder || s.shared_folder;
       if (start) { setFolder(start); load(start); }
     }).catch(() => undefined);
@@ -95,6 +99,8 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
     }
   };
 
+  // Hors du dossier réseau de l'équipe, le catalogue sert forcément en ligne : étape toujours ouverte
+  const showOnline = onlineOpen || (!!edit && !edit.isShared);
   const missing = state ? state.apps.filter((a) => !a.link.trim() && !links[a.id]?.trim()).length : 0;
 
   return (
@@ -176,15 +182,32 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
         </section>
       )}
 
-      {state && (
-        <section className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
-          <div className="flex flex-col gap-1">
-            <h2 className="m-0 text-[19px] font-bold text-ink">3 · Catalogue en ligne : versions et liens</h2>
-            <p className="m-0 text-sm text-ink-muted">
-              Seulement pour un catalogue en ligne (SharePoint, Teams) ; inutile avec le dossier partagé Windows.
-              Pour chaque dossier en ligne : « Copier le lien », accès « Personnes de votre organisation ». Le lien est ouvert
-              dans le navigateur quand un membre clique sur Installer ou Mettre à jour.
-            </p>
+      {state && !showOnline && (
+        <section className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-line-strong bg-surface px-6 py-4">
+          <span className="min-w-0 flex-[1_1_360px] text-sm text-ink-muted">
+            Avec le dossier réseau, rien d'autre à faire : vos collègues voient chaque enregistrement tout de suite.
+          </span>
+          <button type="button" onClick={() => setOnlineOpen(true)} aria-expanded={false} aria-controls="etape-en-ligne"
+            className="flex h-10 items-center gap-2 rounded border border-line-strong bg-surface px-4 text-sm font-medium text-ink-body hover:bg-surface-3">
+            Publier aussi un catalogue en ligne…
+          </button>
+        </section>
+      )}
+
+      {state && showOnline && (
+        <section id="etape-en-ligne" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
+          <div className="flex flex-wrap items-start gap-3">
+            <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-1">
+              <h2 className="m-0 text-[19px] font-bold text-ink">3 · Catalogue en ligne : versions et liens</h2>
+              <p className="m-0 text-sm text-ink-muted">
+                Pour une équipe qui passe par SharePoint ou Teams. Pour chaque dossier en ligne : « Copier le lien », accès
+                « Personnes de votre organisation ». Le lien est ouvert dans le navigateur quand un membre clique sur Installer ou Mettre à jour.
+              </p>
+            </div>
+            {!state.link && edit?.isShared && (
+              <button type="button" onClick={() => setOnlineOpen(false)} aria-expanded aria-controls="etape-en-ligne"
+                className="h-9 shrink-0 border-0 bg-transparent px-1 text-sm text-accent underline">Replier</button>
+            )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] border-collapse text-sm">

@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActionError, api, iaApi, toBase64 } from './api';
 import type { AiApp, AiChoice, AiConnection, AiState, ConnectionForm, ConnectionTest, OllamaState } from './types';
-import { IconAlert, IconBack, IconDownload, IconExternal, IconRefresh, IconSpinner, PlatformContext, SettingsTabs, shortPath } from './ui';
+import { IconAlert, IconBack, IconDownload, IconExternal, IconRefresh, IconSpinner, PlatformContext, SectionTitle, SettingsTabs, shortPath } from './ui';
 
 /* Réglages › Modèles d'IA : connexions communes à toutes les apps de la suite (même modèle que DocAnalyser),
    modèles locaux avec Ollama, et modèle utilisé par chaque app. */
@@ -335,7 +335,7 @@ const Assignments: React.FC<{ state: AiState; onChanged: (s: AiState) => void }>
 
 /* ---------- Ollama ---------- */
 
-export const OllamaSection: React.FC<{ onChanged: (s: AiState) => void }> = ({ onChanged }) => {
+export const OllamaSection: React.FC<{ onChanged: (s: AiState) => void; n?: number }> = ({ onChanged, n }) => {
   const [state, setState] = React.useState<OllamaState | null>(null);
   const [address, setAddress] = React.useState(OLLAMA);
   const [selected, setSelected] = React.useState<string[]>([]);
@@ -399,11 +399,16 @@ export const OllamaSection: React.FC<{ onChanged: (s: AiState) => void }> = ({ o
     <section aria-labelledby="ollama-h" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
       <div className="flex flex-wrap items-start gap-3">
         <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-1">
-          <h2 id="ollama-h" className="m-0 text-[19px] font-bold text-ink">Modèles locaux avec Ollama</h2>
-          <p className="m-0 text-sm text-ink-muted">
-            Les modèles tournent sur ce poste : rien ne sort de l'ordinateur, sans clé ni abonnement. Il faut Ollama installé
-            et un poste assez puissant (16 Go de mémoire pour un modèle de 7 à 8 milliards de paramètres).
-          </p>
+          {(() => {
+            const intro = <>Les modèles tournent sur ce poste : rien ne sort de l'ordinateur, sans clé ni abonnement. Il faut Ollama installé
+              et un poste assez puissant (16 Go de mémoire pour un modèle de 7 à 8 milliards de paramètres).</>;
+            return n ? <SectionTitle n={n} id="ollama-h" title="Modèles locaux avec Ollama" subtitle={intro} /> : (
+              <>
+                <h2 id="ollama-h" className="m-0 text-[19px] font-bold text-ink">Modèles locaux avec Ollama</h2>
+                <p className="m-0 text-sm text-ink-muted">{intro}</p>
+              </>
+            );
+          })()}
         </div>
         {state && (
           <span className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[13px] font-medium ${state.running ? 'border-line bg-success-soft text-success-text' : 'border-line-strong text-ink-muted'}`}>
@@ -528,20 +533,11 @@ export const AiPage: React.FC = () => {
       </p>
       {error && <p role="alert" className="m-0 text-sm text-warning-text">{error}</p>}
 
-      <section aria-labelledby="choix-h" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
-        <div className="flex flex-col gap-1">
-          <h2 id="choix-h" className="m-0 text-[19px] font-bold text-ink">Modèle utilisé par les apps</h2>
-          <p className="m-0 text-sm text-ink-muted">Le modèle par défaut sert à toutes les apps, sauf celles pour lesquelles vous en choisissez un autre.
-            Dans les apps, on peut aussi prendre un autre de ces modèles au moment de lancer une génération ou une analyse.</p>
-        </div>
-        {state ? <Assignments state={state} onChanged={setState} /> : <p className="m-0 flex items-center gap-2 text-sm text-ink-muted"><IconSpinner /> Chargement…</p>}
-      </section>
-
-      <section aria-labelledby="services-h" className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-1">
-            <h2 id="services-h" className="m-0 text-[19px] font-bold text-ink">Services d'IA</h2>
-            <p className="m-0 text-sm text-ink-muted">Passerelle de l'entreprise, Mistral, OpenAI, Gemini… tout service compatible OpenAI, avec sa clé et ses modèles.</p>
+      <section aria-labelledby="services-h" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="min-w-0 flex-[1_1_420px]">
+            <SectionTitle n={1} id="services-h" title="Services d'IA"
+              subtitle="Passerelle de l'entreprise, Mistral, OpenAI, Gemini… tout service compatible OpenAI, avec sa clé et ses modèles." />
           </div>
           {editing === null && (
             <button type="button" onClick={() => setEditing('new')} className={primary}>+ Ajouter un service</button>
@@ -556,7 +552,23 @@ export const AiPage: React.FC = () => {
         )}
       </section>
 
-      <OllamaSection onChanged={setState} />
+      <OllamaSection onChanged={setState} n={2} />
+
+      {/* Choix des modèles : seulement quand il y a quelque chose à choisir */}
+      {!state ? (
+        <p className="m-0 flex items-center gap-2 text-sm text-ink-muted"><IconSpinner /> Chargement…</p>
+      ) : state.connections.length > 0 ? (
+        <section aria-labelledby="choix-h" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
+          <SectionTitle n={3} id="choix-h" title="Modèle utilisé par les apps"
+            subtitle="Le modèle par défaut sert à toutes les apps, sauf celles pour lesquelles vous en choisissez un autre. Dans les apps, on peut aussi prendre un autre de ces modèles au moment de lancer une génération ou une analyse." />
+          <Assignments state={state} onChanged={setState} />
+        </section>
+      ) : (
+        <section aria-labelledby="choix-h" className="flex flex-col gap-2 rounded-lg border border-dashed border-line-strong bg-surface px-6 py-5">
+          <SectionTitle n={3} id="choix-h" title="Modèle utilisé par les apps"
+            subtitle="Ajoutez un service ou des modèles Ollama ci-dessus : vous choisirez ensuite le modèle de chaque app ici." />
+        </section>
+      )}
 
       {state && <p className="m-0 text-[13px] text-ink-subtle">Enregistré sur ce poste, dans <span className="font-mono" title={state.folder}>{shortPath(state.folder)}</span></p>}
     </div>

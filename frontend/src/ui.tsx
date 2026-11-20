@@ -97,6 +97,17 @@ export const Header: React.FC<{ settings?: boolean }> = ({ settings }) => (
   </header>
 );
 
+/** Titre de section numéroté des réglages (Mon espace, Modèles d'IA). */
+export const SectionTitle: React.FC<{ n: number; title: string; subtitle?: React.ReactNode; id?: string }> = ({ n, title, subtitle, id }) => (
+  <div className="flex flex-col gap-1">
+    <h2 id={id} className="m-0 flex items-center gap-2.5 text-[19px] font-bold text-ink">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-3 text-[14px]" aria-hidden="true">{n}</span>
+      {title}
+    </h2>
+    {subtitle && <p className="m-0 text-sm text-ink-muted">{subtitle}</p>}
+  </div>
+);
+
 /* ---------- Réglages : mon espace / l'équipe ---------- */
 
 /** Onglets des réglages : ce qui ne concerne que ce poste, et ce qui est préparé pour toute l'équipe. */
@@ -225,13 +236,14 @@ export type Actions = {
 };
 
 const btnPrimary = 'flex h-11 items-center justify-center gap-2 rounded border-0 bg-primary px-5 font-medium text-primary-on hover:bg-primary-hover disabled:cursor-default disabled:opacity-60 disabled:hover:bg-primary';
-const btnInk = 'flex h-11 min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded border-0 bg-ink px-5 font-medium text-surface hover:opacity-90';
+// Action courante d'une app (Ouvrir, Afficher) : même style que Lancer, la carte ouverte se distingue par sa bordure
+const btnInk = 'flex h-11 min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded border-0 bg-primary px-5 font-medium text-primary-on hover:bg-primary-hover';
 const btnGhost = 'flex h-11 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded border border-line-strong bg-surface px-4 font-medium text-ink-body hover:bg-surface-3';
 
 /** Mise à jour d'une app : le même bouton sur la carte et sur la fiche, en couleur d'accent. */
 export const UpdateButton: React.FC<{ app: DockApp; actions: Actions; wide?: boolean }> = ({ app, actions, wide }) =>
   !app.update || app.progress !== null || app.state === 'starting' || app.waiting ? null : (
-    <button type="button" data-tour="maj" onClick={() => actions.install(app)}
+    <button type="button" id={wide ? undefined : `maj-${app.id}`} data-tour="maj" onClick={() => actions.install(app)}
       aria-label={`Mettre à jour ${app.name} en version ${app.availableVersion}${app.state === 'on' ? ' (l\'app sera fermée)' : ''}`}
       title={app.state === 'on' ? 'L\'app sera fermée pendant la mise à jour' : undefined}
       className={`flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded border border-accent bg-accent-soft px-4 text-sm font-medium text-accent-ink hover:bg-accent-softer ${wide ? 'h-11 min-w-[170px]' : 'w-full'}`}>
