@@ -11,6 +11,9 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 - Réglages › Mon espace en deux parties : « 1 · Mes applications » (votre dossier sur ce poste, avec le dossier
   de chaque app) et « 2 · Les applications de l'équipe », avec le choix dossier réseau Windows (par défaut) ou
   dossier en ligne ; la source utilisée est signalée, et choisir le dossier en ligne retire le dossier réseau.
+- L'onglet « Préparer pour l'équipe » n'apparaît que pour la personne qui tient le catalogue : case « Je gère le
+  catalogue de l'équipe » dans Réglages › Mon espace (cochée d'office si un dossier de préparation a déjà servi).
+  Les autres membres ne voient que Mon espace et Modèles d'IA.
 - Le lien « Dossier d'installation » quitte le pied de page : votre dossier se présente et s'ouvre dans
   Réglages › Mon espace › Mes applications. Le pied de page garde « Journaux ».
 

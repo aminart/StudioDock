@@ -100,6 +100,7 @@ export const Header: React.FC = () => (
 
 /** Onglets des réglages : ce qui ne concerne que ce poste, et ce qui est préparé pour toute l'équipe. */
 export const SettingsTabs: React.FC<{ current: 'perso' | 'ia' | 'equipe' }> = ({ current }) => {
+  const admin = React.useContext(AdminContext);
   const tab = (id: 'perso' | 'ia' | 'equipe', href: string, label: string, hint: string) => (
     <a href={href} aria-current={current === id ? 'page' : undefined}
       className={`flex min-h-11 flex-col justify-center rounded border px-4 py-1.5 no-underline ${current === id
@@ -112,7 +113,7 @@ export const SettingsTabs: React.FC<{ current: 'perso' | 'ia' | 'equipe' }> = ({
     <nav aria-label="Réglages" className="flex flex-wrap gap-1 self-start rounded-md border border-line bg-surface-2 p-1">
       {tab('perso', '#/reglages', 'Mon espace', 'Ce poste uniquement')}
       {tab('ia', '#/ia', 'Modèles d\'IA', 'Pour toutes vos apps')}
-      {tab('equipe', '#/catalogue', 'Préparer pour l\'équipe', 'Publié pour tous')}
+      {(admin || current === 'equipe') && tab('equipe', '#/catalogue', 'Préparer pour l\'équipe', 'Publié pour tous')}
     </nav>
   );
 };
@@ -139,6 +140,8 @@ export const ScopeNote: React.FC<{ scope: 'perso' | 'equipe' }> = ({ scope }) =>
 export const PlatformContext = React.createContext<'windows' | 'mac' | 'linux'>('windows');
 /** Catalogue d'équipe (dossier partagé) ou liste locale : change les messages et les actions possibles. */
 export const TeamContext = React.createContext<boolean>(false);
+/** Ce poste tient le catalogue de l'équipe : l'onglet « Préparer pour l'équipe » s'affiche dans les Réglages. */
+export const AdminContext = React.createContext<boolean>(false);
 
 export const AppIcon: React.FC<{ app: DockApp; size: number }> = ({ app, size }) => {
   const logo = app.icon.style === 'logo';

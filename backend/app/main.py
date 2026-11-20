@@ -209,6 +209,7 @@ async def lister() -> dict[str, Any]:
         "online": _etat_en_ligne(catalogue),
         "canChooseFolder": choisir_dossier is not None,
         "needsInstall": a_installer,
+        "catalogueAdmin": reglages.gere_le_catalogue(),
         # Première connexion : tutoriel d'accueil, tant qu'il n'a pas été vu ni aucune app installée
         "welcome": not reglages.lire().get("welcome_done") and not any(c["installed"] and c["state"] != "missing" for c in cartes),
         "apps": cartes,
@@ -352,6 +353,7 @@ class Reglages(BaseModel):
     shared_folder: str | None = None
     catalogue_link: str | None = None
     welcome_done: bool | None = None  # tutoriel d'accueil vu (False : le revoir)
+    catalogue_admin: bool | None = None  # ce poste tient le catalogue : onglet « Préparer pour l'équipe »
 
 
 @app.get("/api/settings")
@@ -368,6 +370,7 @@ async def lire_reglages():
         "install": _etat_installation(),
         "catalogue_link": valeurs.get("catalogue_link") or "",
         "prepare_folder": valeurs.get("prepare_folder") or "",
+        "catalogue_admin": reglages.gere_le_catalogue(),
         "downloads": str(telechargements.dossier_telechargements()),
     }
 
@@ -445,6 +448,8 @@ async def modifier_reglages(corps: Reglages):
         valeurs["shared_folder"] = corps.shared_folder.strip() or None
     if corps.catalogue_link is not None:
         valeurs["catalogue_link"] = corps.catalogue_link.strip() or None
+    if corps.catalogue_admin is not None:
+        valeurs["catalogue_admin"] = corps.catalogue_admin
     if corps.welcome_done is not None:
         valeurs["welcome_done"] = True if corps.welcome_done else None
     reglages.modifier(**valeurs)

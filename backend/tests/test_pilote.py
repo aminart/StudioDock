@@ -172,3 +172,19 @@ def test_tutoriel_premiere_connexion(client, maison):
     client.put("/api/settings", json={"welcome_done": False})
     deposer(maison, "demo", "Demo.py")  # une app déjà installée : pas de tutoriel
     assert client.get("/api/apps").json()["welcome"] is False
+
+
+def test_onglet_preparer_pour_qui_tient_le_catalogue(client, maison, tmp_path):
+    _catalogue(maison, port_libre())
+    assert client.get("/api/apps").json()["catalogueAdmin"] is False
+    assert client.put("/api/settings", json={"catalogue_admin": True}).json()["catalogue_admin"] is True
+    assert client.get("/api/apps").json()["catalogueAdmin"] is True
+    client.put("/api/settings", json={"catalogue_admin": False})
+    assert client.get("/api/apps").json()["catalogueAdmin"] is False
+
+
+def test_preparation_deja_utilisee_garde_l_onglet(client, maison, tmp_path):
+    from app import reglages
+
+    reglages.modifier(prepare_folder=str(tmp_path))
+    assert client.get("/api/settings").json()["catalogue_admin"] is True

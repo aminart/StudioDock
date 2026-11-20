@@ -87,6 +87,15 @@ def dossier_partage() -> Path | None:
     return developper(lire().get("shared_folder"))
 
 
+def gere_le_catalogue() -> bool:
+    """Ce poste est celui de la personne qui tient le catalogue de l'équipe : l'onglet « Préparer pour l'équipe »
+    s'affiche. Par défaut, oui si un dossier de préparation a déjà servi (avant que ce choix existe)."""
+    valeurs = lire()
+    if "catalogue_admin" in valeurs:
+        return bool(valeurs["catalogue_admin"])
+    return bool(valeurs.get("prepare_folder"))
+
+
 def deja_vues() -> set[str]:
     return set(lire().get("seen") or [])
 

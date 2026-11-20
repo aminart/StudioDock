@@ -66,6 +66,8 @@ export interface DockState {
   needsInstall: boolean;
   /** Première connexion : le tutoriel d'accueil s'affiche. */
   welcome: boolean;
+  /** Ce poste tient le catalogue de l'équipe : l'onglet « Préparer pour l'équipe » s'affiche. */
+  catalogueAdmin: boolean;
   apps: DockApp[];
 }
 
@@ -79,6 +81,8 @@ export interface Settings {
   install: InstallState;
   catalogue_link: string;
   prepare_folder: string;
+  /** Ce poste tient le catalogue de l'équipe : l'onglet « Préparer pour l'équipe » s'affiche. */
+  catalogue_admin: boolean;
   downloads: string;
 }
 

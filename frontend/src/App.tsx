@@ -7,7 +7,7 @@ import { AppPage, Home, SettingsPage } from './screens';
 import { Tour } from './tour';
 import { Welcome } from './welcome';
 import type { DockApp, DockState } from './types';
-import { Actions, Header, IconAlert, IconDownload, PlatformContext, TeamContext } from './ui';
+import { Actions, AdminContext, Header, IconAlert, IconDownload, PlatformContext, TeamContext } from './ui';
 
 const useRoute = (): string => {
   const [hash, setHash] = React.useState(window.location.hash);
@@ -100,6 +100,7 @@ export const App: React.FC = () => {
   return (
     <PlatformContext.Provider value={state?.platform ?? 'windows'}>
     <TeamContext.Provider value={team}>
+    <AdminContext.Provider value={!!state?.catalogueAdmin}>
     <div className="flex min-h-screen flex-col bg-bg font-sans text-[15px] leading-normal text-ink-body">
       <Header />
       <main className="mx-auto box-border flex w-full max-w-[1200px] flex-grow flex-col gap-6 px-6 pb-8 pt-10">
@@ -196,6 +197,7 @@ export const App: React.FC = () => {
         </div>
       )}
     </div>
+    </AdminContext.Provider>
     </TeamContext.Provider>
     </PlatformContext.Provider>
   );

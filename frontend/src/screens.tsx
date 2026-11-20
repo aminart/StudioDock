@@ -430,6 +430,19 @@ export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'h
 
       <TeamSection settings={settings} platform={platform} openShared={() => openFolder('shared')}
         onSaved={(s) => { setSettings(s); onSaved(); }} />
+
+      {settings && (
+        <section className="flex flex-col gap-2 rounded-lg border border-line bg-surface px-6 py-5">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input type="checkbox" className="mt-1 h-4 w-4" checked={settings.catalogue_admin}
+              onChange={async (e) => { setSettings(await api.saveCatalogueAdmin(e.target.checked)); onSaved(); }} />
+            <span className="flex flex-col gap-0.5">
+              <span className="text-[15px] font-semibold text-ink">Je gère le catalogue de l'équipe</span>
+              <span className="text-sm text-ink-muted">Affiche l'onglet « Préparer pour l'équipe » : choisir les apps proposées à l'équipe et rédiger leur fiche. À laisser décoché si vous utilisez seulement les apps.</span>
+            </span>
+          </label>
+        </section>
+      )}
     </div>
   );
 };
