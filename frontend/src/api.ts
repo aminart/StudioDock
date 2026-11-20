@@ -22,6 +22,8 @@ async function call<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, 
 
 export const api = {
   state: () => call<DockState>('GET', '/api/apps'),
+  minimizeWindow: () => call<{ ok: boolean }>('POST', '/api/window/minimize'),
+  closeWindow: () => call<{ ok: boolean }>('POST', '/api/window/close'),
   launch: (id: string) => call<DockApp>('POST', `/api/apps/${id}/launch`),
   stop: (id: string) => call<DockApp>('POST', `/api/apps/${id}/stop`),
   open: (id: string) => call<{ ok: boolean }>('POST', `/api/apps/${id}/open`),

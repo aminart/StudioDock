@@ -85,6 +85,34 @@ export const App: React.FC = () => {
     });
   });
 
+  // Fermeture de la fenêtre avec des apps web ouvertes : appelée par Studio Dock, qui attend la réponse ici
+  const latest = React.useRef(state);
+  latest.current = state;
+  React.useEffect(() => {
+    const w = window as unknown as { __studioDockFermeture?: () => boolean };
+    w.__studioDockFermeture = () => {
+      const open = (latest.current?.apps ?? []).filter((a) => a.kind === 'web' && a.state === 'on' && !a.external);
+      const names = open.map((a) => a.name);
+      const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} et ${names[names.length - 1]}` : names[0] ?? 'Des apps';
+      ask({
+        title: 'Fermer Studio Dock ?',
+        text: <>
+          <p className="m-0">{list} {names.length > 1 ? 'sont ouvertes' : 'est ouverte'} : {names.length > 1 ? 'elles s\'arrêtent' : 'elle s\'arrête'} avec Studio Dock, et un travail en cours serait perdu.</p>
+          <p className="m-0">Pour continuer à {names.length > 1 ? 'les' : 'l\''}utiliser, réduisez plutôt Studio Dock dans la barre des tâches.</p>
+        </>,
+        choices: [
+          { label: 'Tout fermer', value: 'close', tone: 'danger' },
+          { label: 'Réduire Studio Dock', value: 'minimize', tone: 'primary', focus: true },
+        ],
+      }).then((r) => {
+        if (r === 'minimize') api.minimizeWindow().catch(() => undefined);
+        else if (r === 'close') api.closeWindow().catch(() => undefined);
+      });
+      return true;
+    };
+    return () => { delete w.__studioDockFermeture; };
+  }, [ask]);
+
   const actions: Actions = {
     launch: (app) => run(app, () => api.launch(app.id)),
     stop: async (app) => {
@@ -227,7 +255,7 @@ export const App: React.FC = () => {
       <footer className="mx-auto box-border w-full max-w-[1200px] px-6 pb-6">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-line pt-4 text-[13px] text-ink-subtle">
           <span>Studio Dock {state ? `v${state.version}` : ''}</span>
-          <span>Les apps web s'arrêtent quand vous fermez Studio Dock.</span>
+          <span>Les apps web s'arrêtent avec Studio Dock : il vous prévient avant.</span>
           <span data-tour="pied" className="ml-auto flex gap-4">
             <a href="#/visite" className="text-accent no-underline hover:underline">Visite guidée</a>
             <a href="#/bienvenue" className="text-accent no-underline hover:underline">Revoir le tutoriel</a>

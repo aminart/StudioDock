@@ -37,8 +37,14 @@ const TestBanner: React.FC<{ test: ConnectionTest }> = ({ test }) => (
 
 /* ---------- Formulaire d'une connexion ---------- */
 
-export const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved: (s: AiState) => void; onCancel: () => void }> = ({
-  existing, onSaved, onCancel,
+/** Nom par défaut d'un service : l'hôte de son adresse (llm.mon-entreprise.fr). */
+const hostName = (url: string) => {
+  try { return new URL(url.trim()).hostname.replace(/^www\./, '') || 'Service d\'IA'; } catch { return 'Service d\'IA'; }
+};
+
+/** compact (tutoriel) : adresse, clé, modèles et test ; nom, certificat et contexte repliés dans « Plus d'options ». */
+export const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved: (s: AiState) => void; onCancel: () => void; compact?: boolean }> = ({
+  existing, onSaved, onCancel, compact,
 }) => {
   const platform = React.useContext(PlatformContext);
   const [form, setForm] = React.useState<ConnectionForm>(() => existing
@@ -63,7 +69,8 @@ export const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved
   };
   const withPending = (): ConnectionForm => {
     const extra = newModel.split(/[,\n]/).map((m) => m.trim()).filter((m) => m && !form.models.includes(m));
-    return extra.length ? { ...form, models: [...form.models, ...extra] } : form;
+    const named = form.name.trim() ? form : { ...form, name: hostName(form.api_base) };
+    return extra.length ? { ...named, models: [...named.models, ...extra] } : named;
   };
   const complete = /^https?:\/\//i.test(form.api_base.trim()) && form.models.length + (newModel.trim() ? 1 : 0) > 0;
   const failed = test && !test.ok ? test.field : null;
@@ -93,44 +100,12 @@ export const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved
     }
     onSaved(state);
   });
-  const suggestions = (test?.available ?? []).filter((m) => !form.models.includes(m) && !form.models.includes(m.split(':')[0]));
-
-  return (
-    <section aria-label={existing ? `Modifier ${existing.name}` : 'Nouvelle connexion'} className="flex flex-col rounded-lg border border-line-strong bg-surface">
-      <div className="flex flex-col gap-1 px-6 pt-6">
-        <h3 className="m-0 text-[17px] font-bold text-ink">{existing ? `Modifier « ${existing.name} »` : 'Nouvelle connexion'}</h3>
-        <p className="m-0 text-sm text-ink-muted">Ces informations sont fournies par votre service informatique ou par le fournisseur du service d'IA.</p>
-      </div>
-      <div className="flex flex-col gap-5 px-6 py-5">
-        {test && <TestBanner test={test} />}
-        <Field label="Nom" htmlFor="c-name" hint="Affiché à côté de chaque modèle, dans Studio Dock et dans les apps.">
-          <input id="c-name" className={input()} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Passerelle de l'entreprise" />
+  const nameJsx = (
+        <Field label="Nom" htmlFor="c-name" optional hint="Affiché à côté de chaque modèle, dans Studio Dock et dans les apps. Vide : le nom du serveur.">
+          <input id="c-name" className={input()} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder={form.api_base ? hostName(form.api_base) : 'Passerelle de l\'entreprise'} />
         </Field>
-        <Field label="Adresse du service" htmlFor="c-url" hint="Compatible OpenAI, elle se termine souvent par /v1. Exemple : https://llm.mon-entreprise.fr/v1">
-          <input id="c-url" type="url" className={`${input(failed === 'api_base')} font-mono`} value={form.api_base}
-            onChange={(e) => set('api_base', e.target.value)} placeholder="https://llm.mon-entreprise.fr/v1" />
-        </Field>
-        {form.api_key === null ? (
-          <Field label="Clé API" hint={platform === 'windows' ? 'Chiffrée avec votre compte Windows : jamais réaffichée en clair.' : 'Enregistrée sur ce poste : jamais réaffichée en clair.'}>
-            <div className={`flex min-h-11 items-center gap-3 rounded border bg-surface-2 pl-3.5 pr-1.5 ${failed === 'api_key' ? 'border-danger' : 'border-line-strong'}`}>
-              <span className="flex-1 font-mono text-sm tracking-[0.08em] text-ink-body">•••• •••• {existing?.api_key_hint}</span>
-              <button type="button" className={secondary} onClick={() => set('api_key', '')}>Modifier</button>
-            </div>
-          </Field>
-        ) : (
-          <Field label="Clé API" htmlFor="c-key" optional hint="Laissez vide pour un service qui n'en demande pas.">
-            <div className="flex gap-2">
-              <input id="c-key" type={showKey ? 'text' : 'password'} autoComplete="off" className={`${input(failed === 'api_key')} font-mono`}
-                value={form.api_key} onChange={(e) => set('api_key', e.target.value)} placeholder="Collez votre clé API" />
-              <button type="button" className={`${secondary} shrink-0`} onClick={() => setShowKey((v) => !v)}>{showKey ? 'Masquer' : 'Afficher'}</button>
-            </div>
-            {existing?.has_api_key && (
-              <button type="button" className="self-start border-0 bg-transparent p-0 text-[13px] font-medium text-accent underline" onClick={() => set('api_key', null)}>
-                Garder la clé enregistrée
-              </button>
-            )}
-          </Field>
-        )}
+  );
+  const certJsx = (
         <Field label="Certificat de l'entreprise" optional={!certificate && !pendingCert}
           hint={certificate || pendingCert ? undefined : "Seulement pour une adresse https dont le certificat est signé par une autorité interne (fichier .crt fourni par l'informatique)."}>
           {certificate || pendingCert ? (
@@ -157,6 +132,52 @@ export const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved
             e.target.value = '';
           }} />
         </Field>
+  );
+  const contextJsx = (
+          <div className="max-w-[320px]">
+            <Field label="Fenêtre de contexte (tokens)" htmlFor="c-ctx" hint="Taille de texte que le modèle accepte en une requête : au-delà, les apps découpent les documents.">
+              <input id="c-ctx" type="number" min={1000} className={input()} value={form.context_tokens ?? ''} placeholder="128 000"
+                onChange={(e) => set('context_tokens', e.target.value ? Number(e.target.value) : null)} />
+            </Field>
+          </div>
+  );
+  const suggestions = (test?.available ?? []).filter((m) => !form.models.includes(m) && !form.models.includes(m.split(':')[0]));
+
+  return (
+    <section aria-label={existing ? `Modifier ${existing.name}` : 'Nouvelle connexion'} className="flex flex-col rounded-lg border border-line-strong bg-surface">
+      <div className="flex flex-col gap-1 px-6 pt-6">
+        <h3 className="m-0 text-[17px] font-bold text-ink">{existing ? `Modifier « ${existing.name} »` : 'Nouvelle connexion'}</h3>
+        <p className="m-0 text-sm text-ink-muted">Ces informations sont fournies par votre service informatique ou par le fournisseur du service d'IA.</p>
+      </div>
+      <div className="flex flex-col gap-5 px-6 py-5">
+        {test && <TestBanner test={test} />}
+        {!compact && nameJsx}
+        <Field label="Adresse du service" htmlFor="c-url" hint="Compatible OpenAI, elle se termine souvent par /v1. Exemple : https://llm.mon-entreprise.fr/v1">
+          <input id="c-url" type="url" className={`${input(failed === 'api_base')} font-mono`} value={form.api_base}
+            onChange={(e) => set('api_base', e.target.value)} placeholder="https://llm.mon-entreprise.fr/v1" />
+        </Field>
+        {form.api_key === null ? (
+          <Field label="Clé API" hint={platform === 'windows' ? 'Chiffrée avec votre compte Windows : jamais réaffichée en clair.' : 'Enregistrée sur ce poste : jamais réaffichée en clair.'}>
+            <div className={`flex min-h-11 items-center gap-3 rounded border bg-surface-2 pl-3.5 pr-1.5 ${failed === 'api_key' ? 'border-danger' : 'border-line-strong'}`}>
+              <span className="flex-1 font-mono text-sm tracking-[0.08em] text-ink-body">•••• •••• {existing?.api_key_hint}</span>
+              <button type="button" className={secondary} onClick={() => set('api_key', '')}>Modifier</button>
+            </div>
+          </Field>
+        ) : (
+          <Field label="Clé API" htmlFor="c-key" optional hint="Laissez vide pour un service qui n'en demande pas.">
+            <div className="flex gap-2">
+              <input id="c-key" type={showKey ? 'text' : 'password'} autoComplete="off" className={`${input(failed === 'api_key')} font-mono`}
+                value={form.api_key} onChange={(e) => set('api_key', e.target.value)} placeholder="Collez votre clé API" />
+              <button type="button" className={`${secondary} shrink-0`} onClick={() => setShowKey((v) => !v)}>{showKey ? 'Masquer' : 'Afficher'}</button>
+            </div>
+            {existing?.has_api_key && (
+              <button type="button" className="self-start border-0 bg-transparent p-0 text-[13px] font-medium text-accent underline" onClick={() => set('api_key', null)}>
+                Garder la clé enregistrée
+              </button>
+            )}
+          </Field>
+        )}
+        {!compact && certJsx}
         <Field label="Modèles" hint="Les modèles de ce service à proposer aux apps. Tapez un nom puis Entrée.">
           <div className={`flex flex-wrap items-center gap-2 rounded border bg-surface-2 px-2.5 py-2 ${failed === 'models' ? 'border-danger' : 'border-line-strong'}`}>
             {form.models.map((m) => (
@@ -184,17 +205,25 @@ export const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved
             </div>
           )}
         </Field>
-        <details className="border-t border-line pt-4">
-          <summary className="cursor-pointer text-sm font-medium text-ink-muted hover:text-ink">
-            Options avancées · fenêtre de contexte {form.context_tokens ? `${form.context_tokens.toLocaleString('fr-FR')} tokens` : 'par défaut'}
-          </summary>
-          <div className="mt-4 max-w-[320px]">
-            <Field label="Fenêtre de contexte (tokens)" htmlFor="c-ctx" hint="Taille de texte que le modèle accepte en une requête : au-delà, les apps découpent les documents.">
-              <input id="c-ctx" type="number" min={1000} className={input()} value={form.context_tokens ?? ''} placeholder="128 000"
-                onChange={(e) => set('context_tokens', e.target.value ? Number(e.target.value) : null)} />
-            </Field>
-          </div>
-        </details>
+        {compact ? (
+          <details className="border-t border-line pt-4" open={!!certificate || !!pendingCert || failed === 'certificate'}>
+            <summary className="cursor-pointer text-sm font-medium text-ink-muted hover:text-ink">
+              Plus d'options : nom, certificat de l'entreprise, fenêtre de contexte
+            </summary>
+            <div className="mt-4 flex flex-col gap-5">
+              {nameJsx}
+              {certJsx}
+              {contextJsx}
+            </div>
+          </details>
+        ) : (
+          <details className="border-t border-line pt-4">
+            <summary className="cursor-pointer text-sm font-medium text-ink-muted hover:text-ink">
+              Options avancées · fenêtre de contexte {form.context_tokens ? `${form.context_tokens.toLocaleString('fr-FR')} tokens` : 'par défaut'}
+            </summary>
+            <div className="mt-4">{contextJsx}</div>
+          </details>
+        )}
         {error && <p role="alert" className="m-0 rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-sm text-warning-text">{error}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-3 rounded-b-lg border-t border-line bg-surface-2 px-6 py-4">

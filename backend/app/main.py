@@ -27,6 +27,9 @@ pilote = Pilote()
 installeur = Installeur(pilote)
 # Sélecteur de dossier natif, fourni par la fenêtre (pywebview) ; None dans le navigateur
 choisir_dossier: Callable[[], str | None] | None = None
+# Fenêtre (pywebview) : réduire, ou fermer pour de bon après confirmation ; None dans le navigateur
+reduire_fenetre: Callable[[], None] | None = None
+fermer_fenetre: Callable[[], None] | None = None
 
 _cache_partage: dict[str, tuple[float, Trouvee | None]] = {}
 
@@ -499,6 +502,24 @@ async def lancer(app_id: str):
     except ErreurAction as e:
         return _erreur(e)
     return await _apres(entree)
+
+
+@app.post("/api/window/minimize")
+async def reduire():
+    """Fermeture demandée avec des apps ouvertes : Studio Dock passe dans la barre des tâches, les apps continuent."""
+    if reduire_fenetre is None:
+        return _erreur(ErreurAction("no_window", "Pas de fenêtre à réduire."))
+    await asyncio.to_thread(reduire_fenetre)
+    return {"ok": True}
+
+
+@app.post("/api/window/close")
+async def fermer():
+    """Fermeture confirmée : la fenêtre se ferme, puis Studio Dock arrête les apps qu'il a lancées."""
+    if fermer_fenetre is None:
+        return _erreur(ErreurAction("no_window", "Pas de fenêtre à fermer."))
+    await asyncio.to_thread(fermer_fenetre)
+    return {"ok": True}
 
 
 @app.post("/api/apps/{app_id}/stop")

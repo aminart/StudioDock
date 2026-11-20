@@ -3,7 +3,7 @@ import { api, iaApi } from './api';
 import { ConnectionEditor, OllamaSection } from './ia';
 import { NetworkPanel, OnlinePanel } from './screens';
 import type { AiState, DockApp, DockState, Settings } from './types';
-import { DockLogo, IconFolder, IconSpinner, PlatformContext } from './ui';
+import { DockLogo, IconFolder, IconRefresh, IconSpinner, PlatformContext, shortPath } from './ui';
 
 /* Tutoriel de première connexion : ce qu'est Studio Dock, où sont vos apps, d'où viennent celles de l'équipe,
    les modèles d'IA, et comment se servir des cartes. Revu à tout moment depuis le pied de page. */
@@ -22,14 +22,14 @@ const Point: React.FC<{ n: string; title: string; children: React.ReactNode }> =
 );
 
 /** Petite carte d'app factice, pour montrer où cliquer. */
-const DemoCard: React.FC<{ label: string; icon: string | null; action: string; tone: 'primary' | 'secondary'; status: string }> = ({ label, icon, action, tone, status }) => (
+const DemoCard: React.FC<{ label: string; icon: string | null; action: React.ReactNode; tone: 'primary' | 'accent'; status: string }> = ({ label, icon, action, tone, status }) => (
   <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4" aria-hidden="true">
     <div className="flex items-center gap-3">
       {icon ? <img src={icon} alt="" width={40} height={40} className="rounded-[22%]" />
         : <span className="h-10 w-10 rounded-[22%] bg-gradient-to-br from-accent to-primary" />}
       <span className="flex flex-col"><span className="font-semibold text-ink">{label}</span><span className="text-[13px] text-ink-muted">{status}</span></span>
     </div>
-    <span className={`flex h-9 items-center justify-center rounded text-sm font-medium ${tone === 'primary' ? 'bg-primary text-primary-on' : 'border border-line-strong text-ink-body'}`}>{action}</span>
+    <span className={`flex h-9 items-center justify-center rounded text-sm font-medium gap-2 ${tone === 'primary' ? 'bg-primary text-primary-on' : 'border border-accent bg-accent-soft text-accent-ink'}`}>{action}</span>
   </div>
 );
 
@@ -66,7 +66,7 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
     setChosen(new Set(installables.map((a) => a.id)));
     setChosenInit(true);
   }, [installables.length, chosenInit]);
-  const steps = ['Bienvenue', 'Vos applications', 'Les applications de l\'équipe', ...(ai ? ['Modèles d\'IA'] : []),
+  const steps = ['Bienvenue', 'Les applications de l\'équipe', ...(ai ? ['Modèles d\'IA'] : []),
     'Vos premières apps', 'C\'est prêt'];
   const connections = aiState?.connections ?? [];
   // Icône de Mapline pour les cartes d'exemple, si elle est dans le catalogue
@@ -74,7 +74,6 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
   const last = step === steps.length - 1;
   const teamOk = !!settings && (settings.shared_folder ? settings.hasCatalogue : !!settings.catalogue_link);
   const folder = settings?.install.folder ?? settings?.home ?? state.home;
-  const sep = platform === 'windows' ? '\\' : '/';
 
   const finish = async (next?: string, installer = false) => {
     setClosing(true);
@@ -106,24 +105,15 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
               <Point n="2" title="Lancez-les depuis ici">Chaque outil s'ouvre dans votre navigateur ou dans sa fenêtre ; Studio Dock les garde en route.</Point>
               <Point n="3" title="Recevez les nouvelles versions">Quand l'équipe publie une mise à jour, sa carte vous la propose.</Point>
             </ul>
-            <p className="m-0 text-sm text-ink-muted">Quelques réglages rapides et c'est parti. Tout se modifie ensuite dans Réglages.</p>
-          </>
-        );
-      case 'Vos applications':
-        return (
-          <>
-            <h1 ref={titre} tabIndex={-1} className="m-0 text-[26px] font-bold leading-tight text-ink outline-none">Vos applications, sur ce poste</h1>
-            <p className="m-0 text-[15px] text-ink-body">
-              Studio Dock et vos applications sont installés dans votre dossier personnel. Elles en sont lancées :
-              c'est le seul endroit autorisé par l'entreprise, ni le dossier de l'équipe, ni vos Téléchargements.
-            </p>
-            <div className="flex flex-col gap-2 rounded-md bg-surface-2 p-4">
-              <span className="text-[13px] font-medium text-ink-subtle">Votre dossier</span>
-              <span className="break-all font-mono text-sm text-ink">{folder}</span>
-              <span className="text-[13px] text-ink-muted">Une application par dossier : <span className="font-mono">{`${folder}${sep}apps${sep}`}&lt;app&gt;</span></span>
-              <button type="button" onClick={openHome} className={`${secondary} mt-1 h-9 self-start`}><IconFolder /> Afficher le dossier</button>
+            {/* Le dossier est choisi à l'installation : rappelé ici, sans étape à part */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-surface-2 px-4 py-3">
+              <span className="flex min-w-0 flex-[1_1_320px] flex-col gap-0.5">
+                <span className="text-[13px] font-medium text-ink">Vos applications sont installées et lancées depuis votre dossier</span>
+                <span className="font-mono text-[13px] text-ink-muted" title={folder ?? undefined}>{shortPath(folder)}</span>
+              </span>
+              <button type="button" onClick={openHome} className={`${secondary} h-9`}><IconFolder /> Afficher le dossier</button>
             </div>
-            <p className="m-0 text-sm text-ink-muted">Il vous est propre : personne d'autre n'y écrit. Pour le déplacer : Réglages › Mon espace.</p>
+            <p className="m-0 text-sm text-ink-muted">Quelques réglages rapides et c'est parti. Tout se modifie ensuite dans Réglages.</p>
           </>
         );
       case 'Les applications de l\'équipe':
@@ -184,7 +174,7 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
             {ia === 'service' && (
               connections.some((c) => c.provider !== 'ollama')
                 ? <p className="m-0 text-sm text-ink-muted">Un service est déjà enregistré. Pour en ajouter un autre : Réglages › Modèles d'IA.</p>
-                : <ConnectionEditor key="nouveau" existing={null} onSaved={setAiState} onCancel={() => setIa('plus-tard')} />
+                : <ConnectionEditor key="nouveau" compact existing={null} onSaved={setAiState} onCancel={() => setIa('plus-tard')} />
             )}
             {ia === 'ollama' && <OllamaSection onChanged={setAiState} />}
           </>
@@ -244,12 +234,12 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
                 <span className="text-[13px] text-ink-muted"><b className="text-ink">Lancer</b> l'ouvre ; un clic sur la carte affiche sa fiche et sa prise en main.</span>
               </div>
               <div className="flex flex-col gap-2">
-                <DemoCard label="Mapline" icon={exemple} status="Nouvelle version disponible" action="Mettre à jour" tone="secondary" />
+                <DemoCard label="Mapline" icon={exemple} status="Prête" action={<><IconRefresh /> Mettre à jour · 2.0</>} tone="accent" />
                 <span className="text-[13px] text-ink-muted"><b className="text-ink">Mettre à jour</b> quand l'équipe publie une version.</span>
               </div>
             </div>
             <p className="m-0 text-sm text-ink-muted">
-              Les apps qui s'ouvrent dans le navigateur s'arrêtent quand vous fermez Studio Dock : gardez-le ouvert pendant que vous travaillez.
+              Les apps qui s'ouvrent dans le navigateur s'arrêtent avec Studio Dock : gardez-le ouvert, ou réduit dans la barre des tâches, pendant que vous travaillez.
               La visite guidée vous montre ensuite chaque élément de la page ; elle et ce tutoriel restent accessibles en bas de la page.
             </p>
           </>

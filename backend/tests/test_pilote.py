@@ -188,3 +188,28 @@ def test_preparation_deja_utilisee_garde_l_onglet(client, maison, tmp_path):
 
     reglages.modifier(prepare_folder=str(tmp_path))
     assert client.get("/api/settings").json()["catalogue_admin"] is True
+
+
+def test_fermeture_de_la_fenetre_demande_si_des_apps_sont_ouvertes(client, maison, monkeypatch):
+    from app import main
+
+    # Sans fenêtre (navigateur, tests) : rien à réduire ni à fermer
+    assert client.post("/api/window/minimize").status_code == 409
+    assert client.post("/api/window/close").status_code == 409
+
+    _catalogue(maison, port_libre())
+    deposer(maison, "demo", "Demo.py")
+    assert main.pilote.apps_ouvertes() == []
+    client.post("/api/apps/demo/launch")
+    _attendre(client, "demo", {"on"})
+    assert main.pilote.apps_ouvertes() == ["demo"]
+
+    appels = []
+    monkeypatch.setattr(main, "reduire_fenetre", lambda: appels.append("réduite"))
+    monkeypatch.setattr(main, "fermer_fenetre", lambda: appels.append("fermée"))
+    assert client.post("/api/window/minimize").json()["ok"]
+    assert client.post("/api/window/close").json()["ok"]
+    assert appels == ["réduite", "fermée"]
+
+    client.post("/api/apps/demo/stop")
+    assert main.pilote.apps_ouvertes() == []

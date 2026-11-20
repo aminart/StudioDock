@@ -151,6 +151,33 @@ def main(argv: list[str] | None = None) -> None:
     import app.main as module_api
 
     module_api.choisir_dossier = _choisir_dossier
+
+    # Fermer la fenêtre arrête les apps web lancées : s'il y en a, l'interface demande d'abord
+    # (réduire Studio Dock ou tout fermer). Sans réponse de l'interface, la fenêtre se ferme comme avant.
+    fermeture = {"confirmee": False}
+
+    def _fermer() -> None:
+        fermeture["confirmee"] = True
+        window.destroy()
+
+    def _a_la_fermeture() -> bool:
+        if fermeture["confirmee"] or args.check_window or not pilote.apps_ouvertes():
+            return True
+
+        def _demander() -> None:
+            try:
+                prise = window.evaluate_js("window.__studioDockFermeture ? window.__studioDockFermeture() : false")
+            except Exception:  # noqa: BLE001 : page pas chargée, moteur occupé
+                prise = False
+            if not prise:
+                _fermer()
+
+        threading.Thread(target=_demander, daemon=True).start()
+        return False  # fermeture annulée : la réponse viendra de l'interface
+
+    window.events.closing += _a_la_fermeture
+    module_api.reduire_fenetre = window.minimize
+    module_api.fermer_fenetre = _fermer
     if args.check_window:
         # Vérification du workflow : la fenêtre s'ouvre, charge l'interface, puis se ferme
         window.events.loaded += lambda: threading.Timer(2, window.destroy).start()

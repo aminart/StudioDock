@@ -304,6 +304,10 @@ class Pilote:
     def effacer_erreur(self, app: AppEntry) -> None:
         self._erreurs.pop(app.id, None)
 
+    def apps_ouvertes(self) -> list[str]:
+        """Apps web lancées par Studio Dock et toujours en route (celles qui s'arrêtent avec lui)."""
+        return [app_id for app_id, l in list(self._lancements.items()) if l.process.poll() is None]
+
     def tout_arreter(self) -> None:
         """À la fermeture de Studio Dock : arrêt des apps web qu'il a lancées."""
         if self._lancements:
