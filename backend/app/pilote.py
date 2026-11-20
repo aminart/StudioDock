@@ -21,13 +21,14 @@ from typing import Any
 import httpx
 import psutil
 
-from app import winapi
+from app import journal as journal_dock, winapi
 from app.catalogue import AppEntry
 from app.info import logs_dir
 from app.recherche import dossier_web, trouver_native, trouver_web
 
 HOTE = "127.0.0.1"
 DELAI_DEMARRAGE = 120  # secondes : premier lancement d'un exe empaqueté parfois lent (antivirus)
+DELAI_SANTE = 2.0  # secondes : une app occupée (génération, analyse) peut répondre lentement à /health
 DELAI_NATIVE = 15
 
 
@@ -46,6 +47,7 @@ class Lancement:
     debut: float = field(default_factory=time.monotonic)
     journal: Path | None = None
     arret_demande: bool = False
+    prete: bool = False  # a répondu au moins une fois : le délai de démarrage ne la concerne plus
 
 
 def port_occupe(port: int) -> bool:
@@ -80,6 +82,11 @@ def _arreter_arbre(pid: int) -> None:
             pass
 
 
+def _duree(secondes: float) -> str:
+    minutes = int(secondes // 60)
+    return f"{minutes // 60} h {minutes % 60:02d}" if minutes >= 60 else f"{minutes} min"
+
+
 def _fin_du_journal(chemin: Path | None, lignes: int = 6) -> str:
     if not chemin:
         return ""
@@ -107,7 +114,7 @@ class Pilote:
             return None
 
     async def etats(self, apps: list[AppEntry]) -> dict[str, dict[str, Any]]:
-        async with httpx.AsyncClient(timeout=0.6) as client:
+        async with httpx.AsyncClient(timeout=DELAI_SANTE) as client:
             sante = await asyncio.gather(*[
                 self._sante(client, a.port) if a.kind == "web" else asyncio.sleep(0, None) for a in apps])
         processus = None
@@ -137,6 +144,8 @@ class Pilote:
                             "port_busy", f"Le port {app.port} est utilisé par une autre application.")
                     else:
                         detail = _fin_du_journal(lancement.journal)
+                        journal_dock.noter(f"{app.name} s'est arrêtée seule (code {code}) après "
+                                           f"{_duree(time.monotonic() - lancement.debut)}. Fin de son journal :\n{detail}")
                         self._erreurs[app.id] = ErreurAction(
                             "crashed", f"{app.name} s'est arrêtée (code {code})." + (f"\n{detail}" if detail else ""))
                 lancement = None
@@ -144,11 +153,18 @@ class Pilote:
 
         if reconnue:
             self._erreurs.pop(app.id, None)
+            if lancement:
+                lancement.prete = True
             version = sante.get("version") or base["version"]
             return {**base, "state": "on", "version": version, "external": lancement is None}
         if lancement:
+            if lancement.prete:
+                # Démarrée et toujours en vie, mais trop occupée pour répondre à /health (longue génération,
+                # gros document) : elle tourne, on ne l'arrête surtout pas
+                return {**base, "state": "on", "busy": True}
             if time.monotonic() - lancement.debut < DELAI_DEMARRAGE:
                 return {**base, "state": "starting"}
+            journal_dock.noter(f"{app.name} n'a jamais répondu dans les {DELAI_DEMARRAGE} s après son lancement : arrêtée.")
             self._erreurs[app.id] = ErreurAction(
                 "timeout", f"{app.name} ne répond pas après {DELAI_DEMARRAGE} secondes.")
             self._arreter_lancement(app.id)
@@ -207,6 +223,12 @@ class Pilote:
         winapi.autoriser_programme(trouvee.chemin)
         journal = logs_dir() / f"{app.id}.log"
         journal.parent.mkdir(parents=True, exist_ok=True)
+        # Le journal du lancement précédent est gardé : il explique un arrêt imprévu après la relance
+        try:
+            if journal.is_file() and journal.stat().st_size:
+                journal.replace(journal.with_name(f"{app.id}.precedent.log"))
+        except OSError:
+            pass
         with open(journal, "w", encoding="utf-8") as sortie:
             process = subprocess.Popen(
                 _commande(trouvee.chemin) + ["--port", str(app.port), "--no-browser"],
@@ -214,6 +236,7 @@ class Pilote:
                 **winapi.options_processus())
         with self._verrou:
             self._lancements[app.id] = Lancement(process, journal=journal)
+        journal_dock.noter(f"{app.name} {trouvee.version or ''} lancée (port {app.port}, processus {process.pid}).")
 
     def _lancer_native(self, app: AppEntry) -> None:
         trouvee = trouver_native(app)
@@ -283,6 +306,8 @@ class Pilote:
 
     def tout_arreter(self) -> None:
         """À la fermeture de Studio Dock : arrêt des apps web qu'il a lancées."""
+        if self._lancements:
+            journal_dock.noter(f"Arrêtées avec Studio Dock : {', '.join(self._lancements)}.")
         for app_id in list(self._lancements):
             self._arreter_lancement(app_id)
 

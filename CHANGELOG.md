@@ -4,6 +4,21 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+## [0.6.1] — 2026-11-20
+
+### Corrigé
+
+- Une app web occupée (longue génération, gros document) était arrêtée par Studio Dock avec « … ne répond pas
+  après 120 secondes » : le délai de 120 s, prévu pour le démarrage, s'appliquait aussi après, dès qu'un contrôle
+  de /health tardait. Une app démarrée n'est plus jamais arrêtée parce qu'elle tarde à répondre : sa carte
+  indique « Ouverte · occupée ». Le contrôle attend aussi plus longtemps (2 s au lieu de 0,6 s).
+
+### Ajouté
+
+- Journal de session (logs\studiodock.log) : démarrages et arrêts de Studio Dock, lancement de chaque app, arrêt
+  imprévu d'une app avec la fin de son journal, erreurs non rattrapées ; plantages brutaux dans plantages.log.
+  Le journal d'une app est gardé au lancement suivant (<app>.precedent.log).
+
 ## [0.6.0] — 2026-11-19
 
 ### Ajouté

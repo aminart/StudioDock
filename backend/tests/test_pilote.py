@@ -70,6 +70,15 @@ def test_arret_inattendu_avec_fin_du_journal(client, maison):
     app = _attendre(client, "demo", {"error"})
     assert app["error"]["code"] == "crashed"
     assert "Erreur de démarrage simulée" in app["error"]["message"]
+    # Noté dans le journal de Studio Dock, et le journal de l'app survit à la relance
+    from app.info import logs_dir
+
+    session = (logs_dir() / "studiodock.log").read_text(encoding="utf-8")
+    assert "s'est arrêtée seule" in session and "Erreur de démarrage simulée" in session
+    client.post("/api/apps/demo/dismiss")
+    client.post("/api/apps/demo/launch")
+    _attendre(client, "demo", {"error"})
+    assert "Erreur de démarrage simulée" in (logs_dir() / "demo.precedent.log").read_text(encoding="utf-8")
 
 
 def test_app_deja_lancee_hors_de_studio_dock(client, maison):
@@ -111,3 +120,45 @@ def test_app_native_introuvable_et_icone(client, maison):
     assert r.status_code == 200 and b"<svg" in r.content
     assert client.post("/api/apps/mapline/stop").json()["code"] == "unsupported"
     assert client.post("/api/apps/inconnue/launch").status_code == 404
+
+
+def test_app_occupee_jamais_arretee(client, maison, monkeypatch):
+    """Une app démarrée qui tarde à répondre à /health (longue génération) n'est pas arrêtée, même après le délai
+    de démarrage : avant, Studio Dock la coupait (« ne répond pas après 120 secondes »)."""
+    from app import pilote as module
+
+    _catalogue(maison, port_libre())
+    deposer(maison, "demo", "Demo.py")
+    client.post("/api/apps/demo/launch")
+    _attendre(client, "demo", {"on"})
+    monkeypatch.setattr(module, "DELAI_DEMARRAGE", 0)
+    vraie_sante = module.Pilote._sante
+
+    async def muette(self, client_, port):
+        return None  # /health ne répond plus à temps
+
+    monkeypatch.setattr(module.Pilote, "_sante", muette)
+    for _ in range(3):
+        app = client.get("/api/apps").json()["apps"][0]
+        assert app["state"] == "on" and app.get("busy") is True
+    from app.main import pilote
+
+    assert pilote._lancements["demo"].process.poll() is None  # toujours en vie
+    monkeypatch.setattr(module.Pilote, "_sante", vraie_sante)
+    assert client.post("/api/apps/demo/stop").json()["state"] == "off"
+
+
+def test_demarrage_sans_reponse_arrete(client, maison, monkeypatch):
+    from app import pilote as module
+
+    _catalogue(maison, port_libre())
+    deposer(maison, "demo", "Demo.py")
+
+    async def muette(self, client_, port):
+        return None
+
+    monkeypatch.setattr(module.Pilote, "_sante", muette)
+    client.post("/api/apps/demo/launch")
+    monkeypatch.setattr(module, "DELAI_DEMARRAGE", 0)
+    app = _attendre(client, "demo", {"error"})
+    assert app["error"]["code"] == "timeout"

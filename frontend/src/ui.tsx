@@ -159,7 +159,7 @@ export const statusText = (app: DockApp): string => {
   if (app.progress !== null) return app.installed ? `Mise à jour… ${app.progress} %` : `Installation… ${app.progress} %`;
   if (app.waiting) return 'Téléchargement attendu…';
   switch (app.state) {
-    case 'on': return app.external ? 'Ouverte hors de Studio Dock' : 'Ouverte';
+    case 'on': return app.external ? 'Ouverte hors de Studio Dock' : app.busy ? 'Ouverte · occupée' : 'Ouverte';
     case 'starting': return 'Démarrage…';
     case 'off': return app.update ? 'Mise à jour disponible' : 'Prête';
     case 'missing': return app.availableVersion || app.kind === 'native' ? 'À installer' : 'Introuvable';

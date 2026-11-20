@@ -21,6 +21,8 @@ export interface DockApp {
   folder: string | null;
   url: string | null;
   external: boolean;
+  /** Ouverte mais trop occupée pour répondre à Studio Dock (longue génération) : elle continue de tourner. */
+  busy?: boolean;
   error: { code: string; message: string } | null;
   /** Catalogue d'équipe : mode, installation sur ce poste, version disponible sur le partage. */
   mode: 'auto' | 'optionnel' | 'masque';
