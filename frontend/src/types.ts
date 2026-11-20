@@ -64,6 +64,8 @@ export interface DockState {
   canChooseFolder: boolean;
   /** Exe Windows lancé hors de son dossier d'installation : l'écran d'installation s'affiche. */
   needsInstall: boolean;
+  /** Première connexion : le tutoriel d'accueil s'affiche. */
+  welcome: boolean;
   apps: DockApp[];
 }
 

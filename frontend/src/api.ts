@@ -34,6 +34,7 @@ export const api = {
   settings: () => call<Settings>('GET', '/api/settings'),
   saveSettings: (shared_folder: string) => call<Settings>('PUT', '/api/settings', { shared_folder }),
   saveCatalogueLink: (catalogue_link: string) => call<Settings>('PUT', '/api/settings', { catalogue_link }),
+  welcomeDone: (welcome_done: boolean) => call<Settings>('PUT', '/api/settings', { welcome_done }),
   cancelDownload: (id: string) => call<DockApp>('POST', `/api/apps/${id}/cancel-download`),
   checkCatalogue: () => call<{ ok: boolean }>('POST', '/api/catalogue/check'),
   cancelCatalogue: () => call<{ ok: boolean }>('POST', '/api/catalogue/cancel'),

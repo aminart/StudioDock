@@ -4,6 +4,7 @@ import { InstallScreen, Restarting } from './install';
 import { AiPage } from './ia';
 import { PreparePage } from './prepare';
 import { AppPage, Home, SettingsPage } from './screens';
+import { Welcome } from './welcome';
 import type { DockApp, DockState } from './types';
 import { Actions, Header, IconAlert, IconDownload, PlatformContext, TeamContext } from './ui';
 
@@ -90,6 +91,7 @@ export const App: React.FC = () => {
   const settingsRoute = route === '#/reglages';
   const prepareRoute = route === '#/catalogue';
   const iaRoute = route === '#/ia';
+  const welcomeRoute = route === '#/bienvenue';
   const team = !!state && state.source !== 'local';
   const current = appId ? state?.apps.find((a) => a.id === appId) : undefined;
 
@@ -151,6 +153,9 @@ export const App: React.FC = () => {
         )}
         {state?.needsInstall && !settingsRoute ? (
           <InstallScreen onRestart={setMoving} restartingIn={moving} />
+        ) : state && (welcomeRoute || (state.welcome && !appId && !settingsRoute && !prepareRoute && !iaRoute)) ? (
+          <Welcome state={state} openHome={() => run(null, () => api.openFolder('home'))}
+            onDone={(next) => { refresh(); window.location.hash = next ?? '#/'; }} />
         ) : iaRoute ? (
           <AiPage />
         ) : prepareRoute ? (
@@ -174,6 +179,7 @@ export const App: React.FC = () => {
           <span>Studio Dock {state ? `v${state.version}` : ''}</span>
           <span>Les apps web s'arrêtent quand vous fermez Studio Dock.</span>
           <span className="ml-auto flex gap-4">
+            <a href="#/bienvenue" className="text-accent no-underline hover:underline">Revoir le tutoriel</a>
             <button type="button" onClick={() => run(null, () => api.openFolder('home'))} className="border-0 bg-transparent p-0 text-accent hover:underline">Dossier d'installation</button>
             <button type="button" onClick={() => actions.logs()} className="border-0 bg-transparent p-0 text-accent hover:underline">Journaux</button>
           </span>

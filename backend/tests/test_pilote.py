@@ -162,3 +162,13 @@ def test_demarrage_sans_reponse_arrete(client, maison, monkeypatch):
     monkeypatch.setattr(module, "DELAI_DEMARRAGE", 0)
     app = _attendre(client, "demo", {"error"})
     assert app["error"]["code"] == "timeout"
+
+
+def test_tutoriel_premiere_connexion(client, maison):
+    _catalogue(maison, port_libre())
+    assert client.get("/api/apps").json()["welcome"] is True
+    client.put("/api/settings", json={"welcome_done": True})
+    assert client.get("/api/apps").json()["welcome"] is False
+    client.put("/api/settings", json={"welcome_done": False})
+    deposer(maison, "demo", "Demo.py")  # une app déjà installée : pas de tutoriel
+    assert client.get("/api/apps").json()["welcome"] is False

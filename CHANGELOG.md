@@ -6,6 +6,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [0.6.1] — 2026-11-20
 
+### Modifié
+
+- Réglages › Mon espace en deux parties : « 1 · Mes applications » (votre dossier sur ce poste, avec le dossier
+  de chaque app) et « 2 · Les applications de l'équipe », avec le choix dossier réseau Windows (par défaut) ou
+  dossier en ligne ; la source utilisée est signalée, et choisir le dossier en ligne retire le dossier réseau.
+
 ### Corrigé
 
 - Une app web occupée (longue génération, gros document) était arrêtée par Studio Dock avec « … ne répond pas
@@ -15,6 +21,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ### Ajouté
 
+- Tutoriel de première connexion : ce qu'est Studio Dock, où sont vos applications (votre dossier), où sont celles
+  de l'équipe (dossier réseau Windows, dossier en ligne ou plus tard, réglé sur place), les modèles d'IA, et
+  comment se servir des cartes. Il s'affiche tant qu'aucune app n'est installée et qu'il n'a pas été vu ; il se
+  revoit depuis le pied de page (« Revoir le tutoriel ») ou Réglages › Mon espace.
 - Journal de session (logs\studiodock.log) : démarrages et arrêts de Studio Dock, lancement de chaque app, arrêt
   imprévu d'une app avec la fin de son journal, erreurs non rattrapées ; plantages brutaux dans plantages.log.
   Le journal d'une app est gardé au lancement suivant (<app>.precedent.log).

@@ -209,6 +209,8 @@ async def lister() -> dict[str, Any]:
         "online": _etat_en_ligne(catalogue),
         "canChooseFolder": choisir_dossier is not None,
         "needsInstall": a_installer,
+        # Première connexion : tutoriel d'accueil, tant qu'il n'a pas été vu ni aucune app installée
+        "welcome": not reglages.lire().get("welcome_done") and not any(c["installed"] and c["state"] != "missing" for c in cartes),
         "apps": cartes,
     }
 
@@ -349,6 +351,7 @@ async def vues(corps: Vues):
 class Reglages(BaseModel):
     shared_folder: str | None = None
     catalogue_link: str | None = None
+    welcome_done: bool | None = None  # tutoriel d'accueil vu (False : le revoir)
 
 
 @app.get("/api/settings")
@@ -442,6 +445,8 @@ async def modifier_reglages(corps: Reglages):
         valeurs["shared_folder"] = corps.shared_folder.strip() or None
     if corps.catalogue_link is not None:
         valeurs["catalogue_link"] = corps.catalogue_link.strip() or None
+    if corps.welcome_done is not None:
+        valeurs["welcome_done"] = True if corps.welcome_done else None
     reglages.modifier(**valeurs)
     _cache_partage.clear()
     return await lire_reglages()

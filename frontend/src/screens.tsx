@@ -406,44 +406,11 @@ export const AppPage: React.FC<{ app: DockApp; actions: Actions; pending: boolea
 export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'home' | 'shared') => void; onRestart: (folder: string) => void }> = ({ onSaved, openFolder, onRestart }) => {
   const platform = React.useContext(PlatformContext);
   const [settings, setSettings] = React.useState<Settings | null>(null);
-  const [value, setValue] = React.useState('');
-  const [busy, setBusy] = React.useState(false);
-  const [message, setMessage] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    api.settings().then((s) => { setSettings(s); setValue(s.shared_folder); }).catch(() => setMessage('Réglages illisibles.'));
+    api.settings().then(setSettings).catch(() => setError('Réglages illisibles.'));
   }, []);
-
-  const save = async (folder: string) => {
-    setBusy(true);
-    setMessage(null);
-    try {
-      const s = await api.saveSettings(folder);
-      setSettings(s);
-      setValue(s.shared_folder);
-      setMessage(!folder ? 'Dossier partagé retiré : Studio Dock utilise la liste locale.'
-        : s.hasCatalogue ? 'Dossier partagé enregistré.' : 'Enregistré, mais le catalogue de l\'équipe est introuvable à cet endroit.');
-      onSaved();
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'Enregistrement impossible.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const choose = async () => {
-    const { path } = await api.chooseFolder();
-    if (path) {
-      setValue(path);
-      await save(path);
-    }
-  };
-
-  const status = settings && settings.shared_folder
-    ? settings.hasCatalogue ? { ok: true, text: 'Accessible, catalogue de l\'équipe trouvé.' }
-      : settings.reachable ? { ok: false, text: 'Dossier accessible, mais sans catalogue.json.' }
-        : { ok: false, text: 'Dossier inaccessible depuis ce poste (réseau, VPN, droits).' }
-    : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -453,123 +420,193 @@ export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'h
       <h1 className="m-0 text-[30px] font-bold leading-tight text-ink">Réglages</h1>
       <SettingsTabs current="perso" />
       <ScopeNote scope="perso" />
-
-      <OnlineSection settings={settings} onSaved={(s) => { setSettings(s); onSaved(); }} />
+      <a href="#/bienvenue" className="-mt-2 self-start text-sm text-accent no-underline hover:underline">Revoir le tutoriel de première connexion</a>
+      {error && <p role="alert" className="m-0 text-sm text-warning-text">{error}</p>}
 
       <InstallSection settings={settings} platform={platform} openHome={() => openFolder('home')} onRestart={onRestart} />
 
-      <SharedFolderSection settings={settings} value={value} setValue={setValue} busy={busy} save={save} choose={choose}
-        status={status} message={message} openShared={() => openFolder('shared')} platform={platform} />
+      <TeamSection settings={settings} platform={platform} openShared={() => openFolder('shared')}
+        onSaved={(s) => { setSettings(s); onSaved(); }} />
     </div>
   );
 };
 
-/* ---------- Dossier partagé Windows ---------- */
+/* ---------- Les applications de l'équipe : dossier réseau ou en ligne ---------- */
 
-/** Dossier réseau commun de l'équipe (lecteur réseau ou \\serveur\partage). À false, la section reste visible
- * mais inactive, pour une équipe qui n'a que le catalogue en ligne. */
-const DOSSIER_PARTAGE_ACTIF = true;
+type Source = 'reseau' | 'en-ligne';
 
-const SharedFolderSection: React.FC<{
-  settings: Settings | null; value: string; setValue: (v: string) => void; busy: boolean;
-  save: (folder: string) => void; choose: () => void; status: { ok: boolean; text: string } | null;
-  message: string | null; openShared: () => void; platform: 'windows' | 'mac' | 'linux';
-}> = ({ settings, value, setValue, busy, save, choose, status, message, openShared, platform }) => {
-  const actif = DOSSIER_PARTAGE_ACTIF;
+const sectionTitle = (n: number, title: string, subtitle: string) => (
+  <div className="flex flex-col gap-1">
+    <h2 className="m-0 flex items-center gap-2.5 text-[19px] font-bold text-ink">
+      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-3 text-[14px]" aria-hidden="true">{n}</span>
+      {title}
+    </h2>
+    <p className="m-0 text-sm text-ink-muted">{subtitle}</p>
+  </div>
+);
+
+const TeamSection: React.FC<{
+  settings: Settings | null; platform: 'windows' | 'mac' | 'linux'; openShared: () => void; onSaved: (s: Settings) => void;
+}> = ({ settings, platform, openShared, onSaved }) => {
+  // Le dossier réseau passe avant le catalogue en ligne : c'est la source utilisée s'il est réglé
+  const current: Source | null = settings?.shared_folder ? 'reseau' : settings?.catalogue_link ? 'en-ligne' : null;
+  const [source, setSource] = React.useState<Source>('reseau');
+  React.useEffect(() => { if (current) setSource(current); }, [current]);
+
+  const option = (value: Source, label: string, hint: string) => (
+    <label className={`flex flex-1 cursor-pointer items-start gap-3 rounded-md border px-4 py-3 ${source === value ? 'border-primary bg-surface' : 'border-line bg-surface-2 hover:border-line-strong'}`}>
+      <input type="radio" name="source-equipe" className="mt-1" checked={source === value} onChange={() => setSource(value)} />
+      <span className="flex flex-col gap-0.5">
+        <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">
+          {label}
+          {current === value && <span className="rounded-full bg-success-soft px-2 py-px text-[12px] font-medium text-success-text">utilisé</span>}
+        </span>
+        <span className="text-[13px] text-ink-muted">{hint}</span>
+      </span>
+    </label>
+  );
+
   return (
-    <section aria-disabled={!actif} className={`flex flex-col gap-4 rounded-lg border p-6 ${actif ? 'border-line bg-surface' : 'border-dashed border-line-strong bg-surface-2'}`}>
-      <div className="flex flex-col gap-1">
-        <h2 className={`m-0 flex flex-wrap items-center gap-2.5 text-[19px] font-bold ${actif ? 'text-ink' : 'text-ink-muted'}`}>
-          Dossier partagé Windows
-          {!actif && <span className="rounded-full border border-line-strong px-2.5 py-0.5 text-[12px] font-medium text-ink-subtle">Indisponible pour l'instant</span>}
-        </h2>
-        <p className="m-0 text-sm text-ink-muted">
-          {actif
-            ? <>Dossier réseau de l'équipe avec <span className="font-mono">catalogue.json</span> et un sous-dossier par application. Les apps n'y sont jamais lancées : elles sont copiées sur ce poste.</>
-            : <>L'équipe n'a pas d'emplacement commun sur le réseau Windows : Studio Dock utilise le catalogue en ligne ci-dessus.
-              Cette option sera activée quand un dossier réseau commun existera.</>}
-        </p>
-      </div>
-      <form className="flex flex-wrap gap-2.5" onSubmit={(e) => { e.preventDefault(); if (actif) save(value.trim()); }}>
-        <label htmlFor="partage" className="sr-only">Chemin du dossier partagé</label>
-        <input id="partage" value={value} onChange={(e) => setValue(e.target.value)} disabled={!actif}
-          placeholder={platform === 'mac' ? '/Volumes/Equipe UX' : '\\\\serveur\\Equipe UX  ou  Z:\\Equipe UX'}
-          className="h-11 min-w-0 flex-[1_1_320px] rounded border border-line-strong bg-surface-2 px-3.5 font-mono text-sm text-ink focus:outline focus:outline-2 focus:outline-focus disabled:cursor-not-allowed disabled:opacity-60" />
-        {settings?.canChooseFolder && (
-          <button type="button" onClick={choose} disabled={busy || !actif}
-            className="flex h-11 items-center gap-2 rounded border border-line-strong bg-surface px-4 font-medium text-ink-body hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-60">
-            <IconFolder /> Choisir…
-          </button>
-        )}
-        <button type="submit" disabled={!actif || busy || value.trim() === (settings?.shared_folder ?? '')}
-          className="flex h-11 items-center gap-2 rounded border-0 bg-primary px-5 font-medium text-primary-on hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-primary-disabled disabled:text-primary-on-disabled">
-          {busy && <IconSpinner />} Enregistrer
-        </button>
-      </form>
-      {actif && status && (
-        <p className={`m-0 flex items-center gap-2 text-sm ${status.ok ? 'text-success-text' : 'text-warning-text'}`}>
-          {status.ok ? <span className="h-2 w-2 rounded-full bg-success" aria-hidden="true" /> : <IconAlert />} {status.text}
-          {settings?.reachable && (
-            <button type="button" onClick={openShared} className="ml-1 border-0 bg-transparent p-0 text-accent underline">Ouvrir</button>
-          )}
-        </p>
-      )}
-      {message && <p role="status" className="m-0 text-sm text-ink-muted">{message}</p>}
-      {/* Un dossier réglé auparavant reste retirable, même option désactivée */}
-      {settings?.shared_folder && (
-        <button type="button" onClick={() => save('')} disabled={busy} className="self-start border-0 bg-transparent p-0 text-sm text-accent underline">
-          Ne plus utiliser de dossier partagé
-        </button>
-      )}
+    <section className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
+      {sectionTitle(2, 'Les applications de l\'équipe', 'Où Studio Dock trouve les apps proposées par l\'équipe et leurs nouvelles versions. Il les copie ensuite dans votre dossier ci-dessus.')}
+      <fieldset className="m-0 flex flex-col gap-2.5 border-0 p-0 sm:flex-row">
+        <legend className="sr-only">Où se trouvent les applications de l'équipe</legend>
+        {option('reseau', 'Dossier réseau Windows', 'Un lecteur réseau de l\'entreprise (par exemple Q:). Recommandé : mises à jour en un clic.')}
+        {option('en-ligne', 'Dossier en ligne', 'SharePoint ou Teams, ouvert dans le navigateur avec votre compte de l\'entreprise.')}
+      </fieldset>
+      {source === 'reseau'
+        ? <NetworkPanel settings={settings} platform={platform} openShared={openShared} onSaved={onSaved} />
+        : <OnlinePanel settings={settings} onSaved={onSaved} />}
     </section>
   );
 };
 
-/* ---------- Catalogue en ligne ---------- */
+const fieldClass = 'h-11 min-w-0 flex-[1_1_320px] rounded border border-line-strong bg-surface-2 px-3.5 font-mono text-sm text-ink focus:outline focus:outline-2 focus:outline-focus';
+const saveClass = 'flex h-11 items-center gap-2 rounded border-0 bg-primary px-5 font-medium text-primary-on hover:bg-primary-hover disabled:cursor-default disabled:bg-primary-disabled disabled:text-primary-on-disabled';
 
-const OnlineSection: React.FC<{ settings: Settings | null; onSaved: (s: Settings) => void }> = ({ settings, onSaved }) => {
+export const NetworkPanel: React.FC<{
+  settings: Settings | null; platform: 'windows' | 'mac' | 'linux'; openShared: () => void; onSaved: (s: Settings) => void;
+}> = ({ settings, platform, openShared, onSaved }) => {
   const [value, setValue] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState<string | null>(null);
-  React.useEffect(() => { if (settings) setValue(settings.catalogue_link); }, [settings?.catalogue_link]);
-  const save = async () => {
+  React.useEffect(() => { if (settings) setValue(settings.shared_folder); }, [settings?.shared_folder]);
+
+  const save = async (folder: string) => {
     setBusy(true);
     setMessage(null);
     try {
-      onSaved(await api.saveCatalogueLink(value.trim()));
-      setMessage(value.trim() ? 'Lien enregistré.' : 'Lien retiré.');
+      const s = await api.saveSettings(folder);
+      onSaved(s);
+      setMessage(!folder ? 'Dossier réseau retiré.'
+        : s.hasCatalogue ? 'Dossier réseau enregistré : les apps de l\'équipe viennent maintenant de ce dossier.'
+          : 'Enregistré, mais le catalogue de l\'équipe est introuvable à cet endroit.');
     } catch (e) {
       setMessage(e instanceof Error ? e.message : 'Enregistrement impossible.');
     } finally {
       setBusy(false);
     }
   };
+  const choose = async () => {
+    const { path } = await api.chooseFolder();
+    if (path) { setValue(path); await save(path); }
+  };
+  const status = settings?.shared_folder
+    ? settings.hasCatalogue ? { ok: true, text: 'Accessible, catalogue de l\'équipe trouvé.' }
+      : settings.reachable ? { ok: false, text: 'Dossier accessible, mais sans catalogue.json.' }
+        : { ok: false, text: 'Dossier inaccessible depuis ce poste (réseau, VPN, droits).' }
+    : null;
+
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
-      <div className="flex flex-col gap-1">
-        <h2 className="m-0 text-[19px] font-bold text-ink">Où trouver les apps de l'équipe</h2>
-        <p className="m-0 text-sm text-ink-muted">
-          Le lien du catalogue en ligne de l'équipe (SharePoint, Teams). Le navigateur télécharge le catalogue et les
-          applications, Studio Dock les récupère dans vos Téléchargements et les installe sur ce poste.
-          Le lien est repris du catalogue dès le premier import ; le modifier ici ne change rien pour les autres.
-        </p>
-      </div>
-      <form className="flex flex-wrap gap-2.5" onSubmit={(e) => { e.preventDefault(); save(); }}>
-        <label htmlFor="lien-catalogue" className="sr-only">Lien du catalogue en ligne</label>
-        <input id="lien-catalogue" value={value} onChange={(e) => setValue(e.target.value)} placeholder="https://entreprise.sharepoint.com/…"
-          className="h-11 min-w-0 flex-[1_1_320px] rounded border border-line-strong bg-surface-2 px-3.5 font-mono text-sm text-ink focus:outline focus:outline-2 focus:outline-focus" />
-        <button type="submit" disabled={busy || value.trim() === (settings?.catalogue_link ?? '')}
-          className="flex h-11 items-center gap-2 rounded border-0 bg-primary px-5 font-medium text-primary-on hover:bg-primary-hover disabled:cursor-default disabled:bg-primary-disabled disabled:text-primary-on-disabled">
+    <div className="flex flex-col gap-3 border-t border-line pt-4">
+      <p className="m-0 text-sm text-ink-body">
+        Le dossier de l'équipe avec <span className="font-mono">catalogue.json</span> et un sous-dossier par application.
+        Les apps n'y sont jamais lancées : elles sont copiées sur ce poste.
+      </p>
+      <form className="flex flex-wrap gap-2.5" onSubmit={(e) => { e.preventDefault(); save(value.trim()); }}>
+        <label htmlFor="partage" className="sr-only">Chemin du dossier réseau de l'équipe</label>
+        <input id="partage" value={value} onChange={(e) => setValue(e.target.value)} className={fieldClass}
+          placeholder={platform === 'mac' ? '/Volumes/Equipe UX/Studio Dock' : 'Q:\\Studio Dock  ou  \\\\serveur\\partage\\Studio Dock'} />
+        {settings?.canChooseFolder && (
+          <button type="button" onClick={choose} disabled={busy}
+            className="flex h-11 items-center gap-2 rounded border border-line-strong bg-surface px-4 font-medium text-ink-body hover:bg-surface-3">
+            <IconFolder /> Choisir…
+          </button>
+        )}
+        <button type="submit" disabled={busy || value.trim() === (settings?.shared_folder ?? '')} className={saveClass}>
           {busy && <IconSpinner />} Enregistrer
         </button>
       </form>
-      {message && <p role="status" className="m-0 text-sm text-ink-muted">{message}</p>}
-      {settings && (
-        <p className="m-0 text-[13px] text-ink-subtle">Téléchargements surveillés : <span className="font-mono">{settings.downloads}</span></p>
+      {status && (
+        <p className={`m-0 flex flex-wrap items-center gap-2 text-sm ${status.ok ? 'text-success-text' : 'text-warning-text'}`}>
+          {status.ok ? <span className="h-2 w-2 rounded-full bg-success" aria-hidden="true" /> : <IconAlert />} {status.text}
+          {settings?.reachable && <button type="button" onClick={openShared} className="border-0 bg-transparent p-0 text-accent underline">Ouvrir</button>}
+        </p>
       )}
-    </section>
+      {message && <p role="status" className="m-0 text-sm text-ink-muted">{message}</p>}
+      {settings?.shared_folder && (
+        <button type="button" onClick={() => save('')} disabled={busy} className="self-start border-0 bg-transparent p-0 text-sm text-accent underline">
+          Ne plus utiliser de dossier réseau
+        </button>
+      )}
+    </div>
   );
 };
+
+export const OnlinePanel: React.FC<{ settings: Settings | null; onSaved: (s: Settings) => void }> = ({ settings, onSaved }) => {
+  const [value, setValue] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const [message, setMessage] = React.useState<string | null>(null);
+  React.useEffect(() => { if (settings) setValue(settings.catalogue_link); }, [settings?.catalogue_link]);
+  const networkFirst = !!settings?.shared_folder;
+
+  const save = async () => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      let s = await api.saveCatalogueLink(value.trim());
+      // Choisir le dossier en ligne : le dossier réseau, prioritaire, est retiré
+      if (value.trim() && s.shared_folder) s = await api.saveSettings('');
+      onSaved(s);
+      setMessage(value.trim() ? 'Lien enregistré : les apps de l\'équipe viennent maintenant du dossier en ligne.' : 'Lien retiré.');
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : 'Enregistrement impossible.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-line pt-4">
+      <p className="m-0 text-sm text-ink-body">
+        Le lien du catalogue en ligne de l'équipe. Le navigateur télécharge le catalogue et les applications,
+        Studio Dock les récupère dans vos Téléchargements et les installe sur ce poste. Le lien est repris du catalogue dès le premier import.
+      </p>
+      {networkFirst && (
+        <p className="m-0 flex items-start gap-2 rounded-md border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning-text">
+          <IconAlert className="mt-0.5 shrink-0" />
+          Le dossier réseau est réglé et passe avant : enregistrer ce lien le retire, et les apps viendront du dossier en ligne.
+        </p>
+      )}
+      <form className="flex flex-wrap gap-2.5" onSubmit={(e) => { e.preventDefault(); save(); }}>
+        <label htmlFor="lien-catalogue" className="sr-only">Lien du catalogue en ligne</label>
+        <input id="lien-catalogue" value={value} onChange={(e) => setValue(e.target.value)} placeholder="https://entreprise.sharepoint.com/…" className={fieldClass} />
+        <button type="submit" disabled={busy || (value.trim() === (settings?.catalogue_link ?? '') && !(networkFirst && value.trim()))} className={saveClass}>
+          {busy && <IconSpinner />} {networkFirst && value.trim() ? 'Utiliser le dossier en ligne' : 'Enregistrer'}
+        </button>
+      </form>
+      {message && <p role="status" className="m-0 text-sm text-ink-muted">{message}</p>}
+      {settings && <p className="m-0 text-[13px] text-ink-subtle">Téléchargements surveillés : <span className="font-mono">{settings.downloads}</span></p>}
+    </div>
+  );
+};
+
+const AppsHint: React.FC<{ folder: string | null | undefined; sep: string }> = ({ folder, sep }) => (
+  <p className="m-0 text-[13px] text-ink-muted">
+    Vos apps : <span className="font-mono text-ink-body">{folder ? `${folder}${sep}apps${sep}` : 'apps'}&lt;app&gt;</span>.
+    Pour installer vous-même une version (sans l'équipe), déposez son exe dans le dossier de l'app ; Studio Dock lance la plus récente.
+  </p>
+);
 
 /* ---------- Dossier d'installation ---------- */
 
@@ -587,10 +624,7 @@ const InstallSection: React.FC<{
     // Mac (ou développement) : emplacement fixe, affiché pour information
     return (
       <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-6">
-        <div className="flex flex-col gap-1">
-          <h2 className="m-0 text-[19px] font-bold text-ink">Emplacement des applications</h2>
-          <p className="m-0 text-sm text-ink-muted">Les applications installées sur ce poste sont rangées ici, une par dossier, et lancées depuis cet endroit.</p>
-        </div>
+        {sectionTitle(1, 'Mes applications', 'Sur ce poste : vos applications installées sont rangées ici, une par dossier, et lancées depuis cet endroit.')}
         <div className="flex flex-wrap items-center gap-3">
           <span className="min-w-0 flex-grow break-all rounded bg-surface-2 px-3.5 py-2.5 font-mono text-sm">{settings?.home ?? '…'}</span>
           <button type="button" onClick={openHome}
@@ -598,19 +632,14 @@ const InstallSection: React.FC<{
             <IconFolder /> {show}
           </button>
         </div>
+        <AppsHint folder={settings?.home} sep="/" />
       </section>
     );
   }
 
   return (
     <section className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
-      <div className="flex flex-col gap-1">
-        <h2 className="m-0 text-[19px] font-bold text-ink">Votre dossier d'installation</h2>
-        <p className="m-0 text-sm text-ink-muted">
-          Le dossier de ce poste où sont installés Studio Dock et vos applications (une par dossier), et d'où elles sont lancées.
-          Propre à chaque membre de l'équipe.
-        </p>
-      </div>
+      {sectionTitle(1, 'Mes applications', 'Le dossier de ce poste où sont installés Studio Dock et vos applications, et d\'où elles sont lancées. Il vous est propre : personne d\'autre n\'y écrit.')}
       {!editing ? (
         <div className="flex flex-wrap items-center gap-3">
           <span className="min-w-0 flex-grow break-all rounded bg-surface-2 px-3.5 py-2.5 font-mono text-sm">{install.folder ?? '…'}</span>
@@ -622,6 +651,7 @@ const InstallSection: React.FC<{
             className="flex h-10 items-center gap-2 rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body hover:bg-surface-3">
             Changer de dossier
           </button>
+          <div className="basis-full"><AppsHint folder={install.folder} sep={platform === 'windows' ? '\\' : '/'} /></div>
         </div>
       ) : (
         <>
