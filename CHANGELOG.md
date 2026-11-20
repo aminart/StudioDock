@@ -55,8 +55,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 - Fermer Studio Dock alors que des apps web sont ouvertes demande d'abord : « Réduire Studio Dock » (proposé
   d'office, les apps continuent) ou « Tout fermer ». Sans app ouverte, la fenêtre se ferme comme avant.
 - Tutoriel en cinq étapes : le dossier de vos applications est rappelé dans « Bienvenue ». Le formulaire de
-  connexion à l'IA y est réduit à l'adresse, la clé et les modèles ; nom, certificat de l'entreprise et fenêtre
-  de contexte sont dans « Plus d'options ». Sans nom, le service prend celui de son serveur.
+  connexion à l'IA y est réduit à l'adresse, la clé, le certificat de l'entreprise (.crt) et les modèles ; nom et
+  fenêtre de contexte sont dans « Plus d'options ». Sans nom, le service prend celui de son serveur.
 - Confirmation avant d'arrêter une app, de la mettre à jour pendant qu'elle est ouverte, ou de la retirer de ce
   poste. Pour le retrait, la boîte dit ce qui part (le programme) et ce qui reste (documents, historique,
   réglages).

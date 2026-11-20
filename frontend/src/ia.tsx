@@ -106,8 +106,10 @@ export const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved
         </Field>
   );
   const certJsx = (
-        <Field label="Certificat de l'entreprise" optional={!certificate && !pendingCert}
-          hint={certificate || pendingCert ? undefined : "Seulement pour une adresse https dont le certificat est signé par une autorité interne (fichier .crt fourni par l'informatique)."}>
+        <Field label="Certificat de l'entreprise" optional={!compact && !certificate && !pendingCert}
+          hint={certificate || pendingCert ? undefined : compact
+            ? "Le fichier .crt fourni par l'informatique : sans lui, la passerelle de l'entreprise refuse la connexion."
+            : "Seulement pour une adresse https dont le certificat est signé par une autorité interne (fichier .crt fourni par l'informatique)."}>
           {certificate || pendingCert ? (
             <div className={`flex flex-wrap items-center gap-3 rounded border bg-surface px-3.5 py-2.5 ${failed === 'certificate' ? 'border-danger' : 'border-line-strong'}`}>
               <div className="min-w-0 flex-1">
@@ -177,7 +179,7 @@ export const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved
             )}
           </Field>
         )}
-        {!compact && certJsx}
+        {certJsx}
         <Field label="Modèles" hint="Les modèles de ce service à proposer aux apps. Tapez un nom puis Entrée.">
           <div className={`flex flex-wrap items-center gap-2 rounded border bg-surface-2 px-2.5 py-2 ${failed === 'models' ? 'border-danger' : 'border-line-strong'}`}>
             {form.models.map((m) => (
@@ -206,13 +208,12 @@ export const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved
           )}
         </Field>
         {compact ? (
-          <details className="border-t border-line pt-4" open={!!certificate || !!pendingCert || failed === 'certificate'}>
+          <details className="border-t border-line pt-4">
             <summary className="cursor-pointer text-sm font-medium text-ink-muted hover:text-ink">
-              Plus d'options : nom, certificat de l'entreprise, fenêtre de contexte
+              Plus d'options : nom, fenêtre de contexte
             </summary>
             <div className="mt-4 flex flex-col gap-5">
               {nameJsx}
-              {certJsx}
               {contextJsx}
             </div>
           </details>
