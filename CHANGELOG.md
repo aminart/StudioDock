@@ -4,6 +4,77 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+## [0.6.1] — 2026-11-20
+
+### Modifié
+
+- Réglages › Mon espace en deux parties : « 1 · Mes applications » (votre dossier sur ce poste, avec le dossier
+  de chaque app) et « 2 · Les applications de l'équipe », avec le choix dossier réseau Windows (par défaut) ou
+  dossier en ligne ; la source utilisée est signalée, et choisir le dossier en ligne retire le dossier réseau.
+- L'onglet « Préparer pour l'équipe » n'apparaît que pour la personne qui tient le catalogue : case « Je gère le
+  catalogue de l'équipe » dans Réglages › Mon espace (cochée d'office si un dossier de préparation a déjà servi).
+  Les autres membres ne voient que Mon espace et Modèles d'IA.
+- Le lien « Dossier d'installation » quitte le pied de page : votre dossier se présente et s'ouvre dans
+  Réglages › Mon espace › Mes applications.
+- Mise à jour d'une app : un seul bouton « Mettre à jour · 1.4.0 », en couleur d'accent, sous les boutons de la
+  carte et à côté de « Lancer » sur la fiche (fini le bouton « ↻ 1.4.0 » sans verbe et le bandeau jaune). La ligne
+  d'état garde l'état de l'app (« Prête », « Ouverte ») au lieu d'afficher « Mise à jour disponible ».
+- Le bouton ■ des cartes porte son libellé « Arrêter ».
+- « Journaux » devient « Signaler un problème » : le dossier des journaux s'ouvre et Studio Dock dit quels
+  fichiers envoyer (studiodock.log et celui de l'app).
+- Mots plus courants : « s'ouvre dans le navigateur » et « application Windows » au lieu de « app web » et
+  « app de bureau », « Pas encore publiée » au lieu de « Indisponible », « Installée à votre demande »,
+  « Version 1.3.0 (1.4.0 disponible) ». Les chemins longs sont abrégés à leurs deux derniers dossiers
+  (chemin complet au survol).
+- Fiches par défaut : l'étape « Vérifiez la connexion au modèle » de SpecGen, AuditErgo et DocAnalyser renvoie à
+  Réglages › Modèles d'IA de Studio Dock. « En bref » indique le modèle utilisé par l'app, avec un lien
+  « Changer ».
+- Le bouton « Réglages » de l'en-tête montre qu'on est dans les réglages.
+- « Ouvrir » et « Afficher » prennent le même style que « Lancer » : un seul bouton principal par carte.
+- Accueil : les pastilles de résumé passent sous le titre ; « 1 mise à jour : SpecGen » mène à la carte et à son
+  bouton « Mettre à jour ». Les apps de l'équipe sans version publiée ne prennent plus une carte : une ligne
+  « Bientôt dans l'équipe : Mapline » les regroupe.
+- Modèles d'IA : sections numérotées dans l'ordre où on les règle (1 · Services d'IA, 2 · Ollama, 3 · Modèle
+  utilisé par les apps) ; le choix des modèles n'apparaît qu'une fois un service ou Ollama réglé.
+- Préparer pour l'équipe : avec le dossier réseau, l'étape « Catalogue en ligne » est repliée derrière
+  « Publier aussi un catalogue en ligne… » ; elle reste ouverte pour un catalogue en ligne.
+- Mon espace : les liens vers la visite et le tutoriel sont regroupés dans un bloc « Aide » en bas de page, et la
+  case « Je gère le catalogue de l'équipe » est présentée comme option avancée.
+- Les exemples de saisie (chemins, liens) sont écrits sous les champs, et le texte indicatif des champs passe
+  au contraste AA.
+
+### Corrigé
+
+- Une app web occupée (longue génération, gros document) était arrêtée par Studio Dock avec « … ne répond pas
+  après 120 secondes » : le délai de 120 s, prévu pour le démarrage, s'appliquait aussi après, dès qu'un contrôle
+  de /health tardait. Une app démarrée n'est plus jamais arrêtée parce qu'elle tarde à répondre : sa carte
+  indique « Ouverte · occupée ». Le contrôle attend aussi plus longtemps (2 s au lieu de 0,6 s).
+
+### Ajouté
+
+- Fermer Studio Dock alors que des apps web sont ouvertes demande d'abord : « Réduire Studio Dock » (proposé
+  d'office, les apps continuent) ou « Tout fermer ». Sans app ouverte, la fenêtre se ferme comme avant.
+- Tutoriel en cinq étapes : le dossier de vos applications est rappelé dans « Bienvenue ». Le formulaire de
+  connexion à l'IA y est réduit à l'adresse, la clé, le certificat de l'entreprise (.crt) et les modèles ; nom et
+  fenêtre de contexte sont dans « Plus d'options ». Sans nom, le service prend celui de son serveur.
+- Confirmation avant d'arrêter une app, de la mettre à jour pendant qu'elle est ouverte, ou de la retirer de ce
+  poste. Pour le retrait, la boîte dit ce qui part (le programme) et ce qui reste (documents, historique,
+  réglages).
+- Menu ⋮ des cartes au clavier : focus sur le premier choix à l'ouverture, flèches haut et bas, Début, Fin,
+  Échap rend le focus au bouton.
+- Tutoriel de première connexion, qui fait toute la configuration : ce qu'est Studio Dock, où sont vos
+  applications (votre dossier), où sont celles de l'équipe (dossier réseau Windows, dossier en ligne ou plus tard),
+  la connexion aux modèles d'IA (service de l'entreprise avec test, ou modèles Ollama du poste), les premières
+  apps à installer (cochées, installées à la fin du tutoriel), et comment se servir des cartes. Il s'affiche tant qu'aucune app n'est installée et qu'il n'a pas été vu ; il se
+  revoit depuis le pied de page (« Revoir le tutoriel ») ou Réglages › Mon espace.
+- Visite guidée de l'accueil, sans rien régler : un projecteur passe sur les vrais éléments (carte d'une app, sa
+  fiche, ses boutons, le menu ⋮, les apps disponibles, Réglages, le pied de page) avec une bulle d'explication ;
+  les éléments absents sont sautés ; clavier ← → et Échap. Elle se relance à tout moment (« Visite guidée » en
+  bas de page, Réglages › Mon espace) et se propose à la fin du tutoriel, qui reste celui de la première connexion.
+- Journal de session (logs\studiodock.log) : démarrages et arrêts de Studio Dock, lancement de chaque app, arrêt
+  imprévu d'une app avec la fin de son journal, erreurs non rattrapées ; plantages brutaux dans plantages.log.
+  Le journal d'une app est gardé au lancement suivant (<app>.precedent.log).
+
 ## [0.6.0] — 2026-11-19
 
 ### Ajouté

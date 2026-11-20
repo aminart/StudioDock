@@ -27,6 +27,9 @@ pilote = Pilote()
 installeur = Installeur(pilote)
 # Sélecteur de dossier natif, fourni par la fenêtre (pywebview) ; None dans le navigateur
 choisir_dossier: Callable[[], str | None] | None = None
+# Fenêtre (pywebview) : réduire, ou fermer pour de bon après confirmation ; None dans le navigateur
+reduire_fenetre: Callable[[], None] | None = None
+fermer_fenetre: Callable[[], None] | None = None
 
 _cache_partage: dict[str, tuple[float, Trouvee | None]] = {}
 
@@ -209,6 +212,9 @@ async def lister() -> dict[str, Any]:
         "online": _etat_en_ligne(catalogue),
         "canChooseFolder": choisir_dossier is not None,
         "needsInstall": a_installer,
+        "catalogueAdmin": reglages.gere_le_catalogue(),
+        # Première connexion : tutoriel d'accueil, tant qu'il n'a pas été vu ni aucune app installée
+        "welcome": not reglages.lire().get("welcome_done") and not any(c["installed"] and c["state"] != "missing" for c in cartes),
         "apps": cartes,
     }
 
@@ -349,6 +355,8 @@ async def vues(corps: Vues):
 class Reglages(BaseModel):
     shared_folder: str | None = None
     catalogue_link: str | None = None
+    welcome_done: bool | None = None  # tutoriel d'accueil vu (False : le revoir)
+    catalogue_admin: bool | None = None  # ce poste tient le catalogue : onglet « Préparer pour l'équipe »
 
 
 @app.get("/api/settings")
@@ -365,6 +373,7 @@ async def lire_reglages():
         "install": _etat_installation(),
         "catalogue_link": valeurs.get("catalogue_link") or "",
         "prepare_folder": valeurs.get("prepare_folder") or "",
+        "catalogue_admin": reglages.gere_le_catalogue(),
         "downloads": str(telechargements.dossier_telechargements()),
     }
 
@@ -442,6 +451,10 @@ async def modifier_reglages(corps: Reglages):
         valeurs["shared_folder"] = corps.shared_folder.strip() or None
     if corps.catalogue_link is not None:
         valeurs["catalogue_link"] = corps.catalogue_link.strip() or None
+    if corps.catalogue_admin is not None:
+        valeurs["catalogue_admin"] = corps.catalogue_admin
+    if corps.welcome_done is not None:
+        valeurs["welcome_done"] = True if corps.welcome_done else None
     reglages.modifier(**valeurs)
     _cache_partage.clear()
     return await lire_reglages()
@@ -489,6 +502,24 @@ async def lancer(app_id: str):
     except ErreurAction as e:
         return _erreur(e)
     return await _apres(entree)
+
+
+@app.post("/api/window/minimize")
+async def reduire():
+    """Fermeture demandée avec des apps ouvertes : Studio Dock passe dans la barre des tâches, les apps continuent."""
+    if reduire_fenetre is None:
+        return _erreur(ErreurAction("no_window", "Pas de fenêtre à réduire."))
+    await asyncio.to_thread(reduire_fenetre)
+    return {"ok": True}
+
+
+@app.post("/api/window/close")
+async def fermer():
+    """Fermeture confirmée : la fenêtre se ferme, puis Studio Dock arrête les apps qu'il a lancées."""
+    if fermer_fenetre is None:
+        return _erreur(ErreurAction("no_window", "Pas de fenêtre à fermer."))
+    await asyncio.to_thread(fermer_fenetre)
+    return {"ok": True}
 
 
 @app.post("/api/apps/{app_id}/stop")

@@ -4,6 +4,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Exemples de saisie : contraste AA (le gris clair par défaut du navigateur est à 2,4:1) */
+@layer base {
+  input::placeholder, textarea::placeholder { @apply text-ink-subtle opacity-100; }
+}
+
 @keyframes sd-spin { to { transform: rotate(360deg); } }
 .sd-spin { animation: sd-spin 0.9s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .sd-spin { animation: none; } }

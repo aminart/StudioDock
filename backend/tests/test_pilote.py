@@ -70,6 +70,15 @@ def test_arret_inattendu_avec_fin_du_journal(client, maison):
     app = _attendre(client, "demo", {"error"})
     assert app["error"]["code"] == "crashed"
     assert "Erreur de démarrage simulée" in app["error"]["message"]
+    # Noté dans le journal de Studio Dock, et le journal de l'app survit à la relance
+    from app.info import logs_dir
+
+    session = (logs_dir() / "studiodock.log").read_text(encoding="utf-8")
+    assert "s'est arrêtée seule" in session and "Erreur de démarrage simulée" in session
+    client.post("/api/apps/demo/dismiss")
+    client.post("/api/apps/demo/launch")
+    _attendre(client, "demo", {"error"})
+    assert "Erreur de démarrage simulée" in (logs_dir() / "demo.precedent.log").read_text(encoding="utf-8")
 
 
 def test_app_deja_lancee_hors_de_studio_dock(client, maison):
@@ -111,3 +120,96 @@ def test_app_native_introuvable_et_icone(client, maison):
     assert r.status_code == 200 and b"<svg" in r.content
     assert client.post("/api/apps/mapline/stop").json()["code"] == "unsupported"
     assert client.post("/api/apps/inconnue/launch").status_code == 404
+
+
+def test_app_occupee_jamais_arretee(client, maison, monkeypatch):
+    """Une app démarrée qui tarde à répondre à /health (longue génération) n'est pas arrêtée, même après le délai
+    de démarrage : avant, Studio Dock la coupait (« ne répond pas après 120 secondes »)."""
+    from app import pilote as module
+
+    _catalogue(maison, port_libre())
+    deposer(maison, "demo", "Demo.py")
+    client.post("/api/apps/demo/launch")
+    _attendre(client, "demo", {"on"})
+    monkeypatch.setattr(module, "DELAI_DEMARRAGE", 0)
+    vraie_sante = module.Pilote._sante
+
+    async def muette(self, client_, port):
+        return None  # /health ne répond plus à temps
+
+    monkeypatch.setattr(module.Pilote, "_sante", muette)
+    for _ in range(3):
+        app = client.get("/api/apps").json()["apps"][0]
+        assert app["state"] == "on" and app.get("busy") is True
+    from app.main import pilote
+
+    assert pilote._lancements["demo"].process.poll() is None  # toujours en vie
+    monkeypatch.setattr(module.Pilote, "_sante", vraie_sante)
+    assert client.post("/api/apps/demo/stop").json()["state"] == "off"
+
+
+def test_demarrage_sans_reponse_arrete(client, maison, monkeypatch):
+    from app import pilote as module
+
+    _catalogue(maison, port_libre())
+    deposer(maison, "demo", "Demo.py")
+
+    async def muette(self, client_, port):
+        return None
+
+    monkeypatch.setattr(module.Pilote, "_sante", muette)
+    client.post("/api/apps/demo/launch")
+    monkeypatch.setattr(module, "DELAI_DEMARRAGE", 0)
+    app = _attendre(client, "demo", {"error"})
+    assert app["error"]["code"] == "timeout"
+
+
+def test_tutoriel_premiere_connexion(client, maison):
+    _catalogue(maison, port_libre())
+    assert client.get("/api/apps").json()["welcome"] is True
+    client.put("/api/settings", json={"welcome_done": True})
+    assert client.get("/api/apps").json()["welcome"] is False
+    client.put("/api/settings", json={"welcome_done": False})
+    deposer(maison, "demo", "Demo.py")  # une app déjà installée : pas de tutoriel
+    assert client.get("/api/apps").json()["welcome"] is False
+
+
+def test_onglet_preparer_pour_qui_tient_le_catalogue(client, maison, tmp_path):
+    _catalogue(maison, port_libre())
+    assert client.get("/api/apps").json()["catalogueAdmin"] is False
+    assert client.put("/api/settings", json={"catalogue_admin": True}).json()["catalogue_admin"] is True
+    assert client.get("/api/apps").json()["catalogueAdmin"] is True
+    client.put("/api/settings", json={"catalogue_admin": False})
+    assert client.get("/api/apps").json()["catalogueAdmin"] is False
+
+
+def test_preparation_deja_utilisee_garde_l_onglet(client, maison, tmp_path):
+    from app import reglages
+
+    reglages.modifier(prepare_folder=str(tmp_path))
+    assert client.get("/api/settings").json()["catalogue_admin"] is True
+
+
+def test_fermeture_de_la_fenetre_demande_si_des_apps_sont_ouvertes(client, maison, monkeypatch):
+    from app import main
+
+    # Sans fenêtre (navigateur, tests) : rien à réduire ni à fermer
+    assert client.post("/api/window/minimize").status_code == 409
+    assert client.post("/api/window/close").status_code == 409
+
+    _catalogue(maison, port_libre())
+    deposer(maison, "demo", "Demo.py")
+    assert main.pilote.apps_ouvertes() == []
+    client.post("/api/apps/demo/launch")
+    _attendre(client, "demo", {"on"})
+    assert main.pilote.apps_ouvertes() == ["demo"]
+
+    appels = []
+    monkeypatch.setattr(main, "reduire_fenetre", lambda: appels.append("réduite"))
+    monkeypatch.setattr(main, "fermer_fenetre", lambda: appels.append("fermée"))
+    assert client.post("/api/window/minimize").json()["ok"]
+    assert client.post("/api/window/close").json()["ok"]
+    assert appels == ["réduite", "fermée"]
+
+    client.post("/api/apps/demo/stop")
+    assert main.pilote.apps_ouvertes() == []

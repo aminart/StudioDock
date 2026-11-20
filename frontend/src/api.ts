@@ -22,6 +22,8 @@ async function call<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, 
 
 export const api = {
   state: () => call<DockState>('GET', '/api/apps'),
+  minimizeWindow: () => call<{ ok: boolean }>('POST', '/api/window/minimize'),
+  closeWindow: () => call<{ ok: boolean }>('POST', '/api/window/close'),
   launch: (id: string) => call<DockApp>('POST', `/api/apps/${id}/launch`),
   stop: (id: string) => call<DockApp>('POST', `/api/apps/${id}/stop`),
   open: (id: string) => call<{ ok: boolean }>('POST', `/api/apps/${id}/open`),
@@ -34,6 +36,8 @@ export const api = {
   settings: () => call<Settings>('GET', '/api/settings'),
   saveSettings: (shared_folder: string) => call<Settings>('PUT', '/api/settings', { shared_folder }),
   saveCatalogueLink: (catalogue_link: string) => call<Settings>('PUT', '/api/settings', { catalogue_link }),
+  welcomeDone: (welcome_done: boolean) => call<Settings>('PUT', '/api/settings', { welcome_done }),
+  saveCatalogueAdmin: (catalogue_admin: boolean) => call<Settings>('PUT', '/api/settings', { catalogue_admin }),
   cancelDownload: (id: string) => call<DockApp>('POST', `/api/apps/${id}/cancel-download`),
   checkCatalogue: () => call<{ ok: boolean }>('POST', '/api/catalogue/check'),
   cancelCatalogue: () => call<{ ok: boolean }>('POST', '/api/catalogue/cancel'),

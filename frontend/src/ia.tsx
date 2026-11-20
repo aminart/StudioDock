@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActionError, api, iaApi, toBase64 } from './api';
 import type { AiApp, AiChoice, AiConnection, AiState, ConnectionForm, ConnectionTest, OllamaState } from './types';
-import { IconAlert, IconBack, IconDownload, IconExternal, IconRefresh, IconSpinner, PlatformContext, SettingsTabs } from './ui';
+import { IconAlert, IconBack, IconDownload, IconExternal, IconRefresh, IconSpinner, PlatformContext, SectionTitle, SettingsTabs, shortPath } from './ui';
 
 /* Réglages › Modèles d'IA : connexions communes à toutes les apps de la suite (même modèle que DocAnalyser),
    modèles locaux avec Ollama, et modèle utilisé par chaque app. */
@@ -37,8 +37,14 @@ const TestBanner: React.FC<{ test: ConnectionTest }> = ({ test }) => (
 
 /* ---------- Formulaire d'une connexion ---------- */
 
-const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved: (s: AiState) => void; onCancel: () => void }> = ({
-  existing, onSaved, onCancel,
+/** Nom par défaut d'un service : l'hôte de son adresse (llm.mon-entreprise.fr). */
+const hostName = (url: string) => {
+  try { return new URL(url.trim()).hostname.replace(/^www\./, '') || 'Service d\'IA'; } catch { return 'Service d\'IA'; }
+};
+
+/** compact (tutoriel) : adresse, clé, modèles et test ; nom, certificat et contexte repliés dans « Plus d'options ». */
+export const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved: (s: AiState) => void; onCancel: () => void; compact?: boolean }> = ({
+  existing, onSaved, onCancel, compact,
 }) => {
   const platform = React.useContext(PlatformContext);
   const [form, setForm] = React.useState<ConnectionForm>(() => existing
@@ -63,7 +69,8 @@ const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved: (s: A
   };
   const withPending = (): ConnectionForm => {
     const extra = newModel.split(/[,\n]/).map((m) => m.trim()).filter((m) => m && !form.models.includes(m));
-    return extra.length ? { ...form, models: [...form.models, ...extra] } : form;
+    const named = form.name.trim() ? form : { ...form, name: hostName(form.api_base) };
+    return extra.length ? { ...named, models: [...named.models, ...extra] } : named;
   };
   const complete = /^https?:\/\//i.test(form.api_base.trim()) && form.models.length + (newModel.trim() ? 1 : 0) > 0;
   const failed = test && !test.ok ? test.field : null;
@@ -93,6 +100,49 @@ const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved: (s: A
     }
     onSaved(state);
   });
+  const nameJsx = (
+        <Field label="Nom" htmlFor="c-name" optional hint="Affiché à côté de chaque modèle, dans Studio Dock et dans les apps. Vide : le nom du serveur.">
+          <input id="c-name" className={input()} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder={form.api_base ? hostName(form.api_base) : 'Passerelle de l\'entreprise'} />
+        </Field>
+  );
+  const certJsx = (
+        <Field label="Certificat de l'entreprise" optional={!compact && !certificate && !pendingCert}
+          hint={certificate || pendingCert ? undefined : compact
+            ? "Le fichier .crt fourni par l'informatique : sans lui, la passerelle de l'entreprise refuse la connexion."
+            : "Seulement pour une adresse https dont le certificat est signé par une autorité interne (fichier .crt fourni par l'informatique)."}>
+          {certificate || pendingCert ? (
+            <div className={`flex flex-wrap items-center gap-3 rounded border bg-surface px-3.5 py-2.5 ${failed === 'certificate' ? 'border-danger' : 'border-line-strong'}`}>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium text-ink">{pendingCert?.name ?? certificate?.name}</div>
+                <div className="text-[13px] text-ink-muted">
+                  {failed === 'certificate' ? 'Non reconnu par le serveur' : pendingCert ? 'Sera enregistré avec la connexion'
+                    : [certificate?.imported_at && `importé le ${date(certificate.imported_at)}`, certificate?.expires_at && `expire le ${date(certificate.expires_at)}`].filter(Boolean).join(' · ')}
+                </div>
+              </div>
+              <button type="button" className={secondary} onClick={() => certInput.current?.click()}>Remplacer</button>
+              <button type="button" className={secondary} onClick={() => { setPendingCert(null); setDropCert(true); setTest(null); }}>Retirer</button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => certInput.current?.click()}
+              className={`flex h-11 items-center justify-center rounded border border-dashed bg-transparent text-sm font-medium text-accent hover:bg-surface-2 ${failed === 'certificate' ? 'border-danger' : 'border-line-strong'}`}>
+              Choisir le fichier .crt
+            </button>
+          )}
+          <input ref={certInput} type="file" accept=".crt,.pem,.cer" className="hidden" onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) { setPendingCert(file); setDropCert(false); setTest(null); }
+            e.target.value = '';
+          }} />
+        </Field>
+  );
+  const contextJsx = (
+          <div className="max-w-[320px]">
+            <Field label="Fenêtre de contexte (tokens)" htmlFor="c-ctx" hint="Taille de texte que le modèle accepte en une requête : au-delà, les apps découpent les documents.">
+              <input id="c-ctx" type="number" min={1000} className={input()} value={form.context_tokens ?? ''} placeholder="128 000"
+                onChange={(e) => set('context_tokens', e.target.value ? Number(e.target.value) : null)} />
+            </Field>
+          </div>
+  );
   const suggestions = (test?.available ?? []).filter((m) => !form.models.includes(m) && !form.models.includes(m.split(':')[0]));
 
   return (
@@ -103,9 +153,7 @@ const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved: (s: A
       </div>
       <div className="flex flex-col gap-5 px-6 py-5">
         {test && <TestBanner test={test} />}
-        <Field label="Nom" htmlFor="c-name" hint="Affiché à côté de chaque modèle, dans Studio Dock et dans les apps.">
-          <input id="c-name" className={input()} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Passerelle de l'entreprise" />
-        </Field>
+        {!compact && nameJsx}
         <Field label="Adresse du service" htmlFor="c-url" hint="Compatible OpenAI, elle se termine souvent par /v1. Exemple : https://llm.mon-entreprise.fr/v1">
           <input id="c-url" type="url" className={`${input(failed === 'api_base')} font-mono`} value={form.api_base}
             onChange={(e) => set('api_base', e.target.value)} placeholder="https://llm.mon-entreprise.fr/v1" />
@@ -131,32 +179,7 @@ const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved: (s: A
             )}
           </Field>
         )}
-        <Field label="Certificat de l'entreprise" optional={!certificate && !pendingCert}
-          hint={certificate || pendingCert ? undefined : "Seulement pour une adresse https dont le certificat est signé par une autorité interne (fichier .crt fourni par l'informatique)."}>
-          {certificate || pendingCert ? (
-            <div className={`flex flex-wrap items-center gap-3 rounded border bg-surface px-3.5 py-2.5 ${failed === 'certificate' ? 'border-danger' : 'border-line-strong'}`}>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium text-ink">{pendingCert?.name ?? certificate?.name}</div>
-                <div className="text-[13px] text-ink-muted">
-                  {failed === 'certificate' ? 'Non reconnu par le serveur' : pendingCert ? 'Sera enregistré avec la connexion'
-                    : [certificate?.imported_at && `importé le ${date(certificate.imported_at)}`, certificate?.expires_at && `expire le ${date(certificate.expires_at)}`].filter(Boolean).join(' · ')}
-                </div>
-              </div>
-              <button type="button" className={secondary} onClick={() => certInput.current?.click()}>Remplacer</button>
-              <button type="button" className={secondary} onClick={() => { setPendingCert(null); setDropCert(true); setTest(null); }}>Retirer</button>
-            </div>
-          ) : (
-            <button type="button" onClick={() => certInput.current?.click()}
-              className={`flex h-11 items-center justify-center rounded border border-dashed bg-transparent text-sm font-medium text-accent hover:bg-surface-2 ${failed === 'certificate' ? 'border-danger' : 'border-line-strong'}`}>
-              Choisir le fichier .crt
-            </button>
-          )}
-          <input ref={certInput} type="file" accept=".crt,.pem,.cer" className="hidden" onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) { setPendingCert(file); setDropCert(false); setTest(null); }
-            e.target.value = '';
-          }} />
-        </Field>
+        {certJsx}
         <Field label="Modèles" hint="Les modèles de ce service à proposer aux apps. Tapez un nom puis Entrée.">
           <div className={`flex flex-wrap items-center gap-2 rounded border bg-surface-2 px-2.5 py-2 ${failed === 'models' ? 'border-danger' : 'border-line-strong'}`}>
             {form.models.map((m) => (
@@ -184,17 +207,24 @@ const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved: (s: A
             </div>
           )}
         </Field>
-        <details className="border-t border-line pt-4">
-          <summary className="cursor-pointer text-sm font-medium text-ink-muted hover:text-ink">
-            Options avancées · fenêtre de contexte {form.context_tokens ? `${form.context_tokens.toLocaleString('fr-FR')} tokens` : 'par défaut'}
-          </summary>
-          <div className="mt-4 max-w-[320px]">
-            <Field label="Fenêtre de contexte (tokens)" htmlFor="c-ctx" hint="Taille de texte que le modèle accepte en une requête : au-delà, les apps découpent les documents.">
-              <input id="c-ctx" type="number" min={1000} className={input()} value={form.context_tokens ?? ''} placeholder="128 000"
-                onChange={(e) => set('context_tokens', e.target.value ? Number(e.target.value) : null)} />
-            </Field>
-          </div>
-        </details>
+        {compact ? (
+          <details className="border-t border-line pt-4">
+            <summary className="cursor-pointer text-sm font-medium text-ink-muted hover:text-ink">
+              Plus d'options : nom, fenêtre de contexte
+            </summary>
+            <div className="mt-4 flex flex-col gap-5">
+              {nameJsx}
+              {contextJsx}
+            </div>
+          </details>
+        ) : (
+          <details className="border-t border-line pt-4">
+            <summary className="cursor-pointer text-sm font-medium text-ink-muted hover:text-ink">
+              Options avancées · fenêtre de contexte {form.context_tokens ? `${form.context_tokens.toLocaleString('fr-FR')} tokens` : 'par défaut'}
+            </summary>
+            <div className="mt-4">{contextJsx}</div>
+          </details>
+        )}
         {error && <p role="alert" className="m-0 rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-sm text-warning-text">{error}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-3 rounded-b-lg border-t border-line bg-surface-2 px-6 py-4">
@@ -335,7 +365,7 @@ const Assignments: React.FC<{ state: AiState; onChanged: (s: AiState) => void }>
 
 /* ---------- Ollama ---------- */
 
-const OllamaSection: React.FC<{ onChanged: (s: AiState) => void }> = ({ onChanged }) => {
+export const OllamaSection: React.FC<{ onChanged: (s: AiState) => void; n?: number }> = ({ onChanged, n }) => {
   const [state, setState] = React.useState<OllamaState | null>(null);
   const [address, setAddress] = React.useState(OLLAMA);
   const [selected, setSelected] = React.useState<string[]>([]);
@@ -399,11 +429,16 @@ const OllamaSection: React.FC<{ onChanged: (s: AiState) => void }> = ({ onChange
     <section aria-labelledby="ollama-h" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
       <div className="flex flex-wrap items-start gap-3">
         <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-1">
-          <h2 id="ollama-h" className="m-0 text-[19px] font-bold text-ink">Modèles locaux avec Ollama</h2>
-          <p className="m-0 text-sm text-ink-muted">
-            Les modèles tournent sur ce poste : rien ne sort de l'ordinateur, sans clé ni abonnement. Il faut Ollama installé
-            et un poste assez puissant (16 Go de mémoire pour un modèle de 7 à 8 milliards de paramètres).
-          </p>
+          {(() => {
+            const intro = <>Les modèles tournent sur ce poste : rien ne sort de l'ordinateur, sans clé ni abonnement. Il faut Ollama installé
+              et un poste assez puissant (16 Go de mémoire pour un modèle de 7 à 8 milliards de paramètres).</>;
+            return n ? <SectionTitle n={n} id="ollama-h" title="Modèles locaux avec Ollama" subtitle={intro} /> : (
+              <>
+                <h2 id="ollama-h" className="m-0 text-[19px] font-bold text-ink">Modèles locaux avec Ollama</h2>
+                <p className="m-0 text-sm text-ink-muted">{intro}</p>
+              </>
+            );
+          })()}
         </div>
         {state && (
           <span className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[13px] font-medium ${state.running ? 'border-line bg-success-soft text-success-text' : 'border-line-strong text-ink-muted'}`}>
@@ -528,20 +563,11 @@ export const AiPage: React.FC = () => {
       </p>
       {error && <p role="alert" className="m-0 text-sm text-warning-text">{error}</p>}
 
-      <section aria-labelledby="choix-h" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
-        <div className="flex flex-col gap-1">
-          <h2 id="choix-h" className="m-0 text-[19px] font-bold text-ink">Modèle utilisé par les apps</h2>
-          <p className="m-0 text-sm text-ink-muted">Le modèle par défaut sert à toutes les apps, sauf celles pour lesquelles vous en choisissez un autre.
-            Dans les apps, on peut aussi prendre un autre de ces modèles au moment de lancer une génération ou une analyse.</p>
-        </div>
-        {state ? <Assignments state={state} onChanged={setState} /> : <p className="m-0 flex items-center gap-2 text-sm text-ink-muted"><IconSpinner /> Chargement…</p>}
-      </section>
-
-      <section aria-labelledby="services-h" className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-1">
-            <h2 id="services-h" className="m-0 text-[19px] font-bold text-ink">Services d'IA</h2>
-            <p className="m-0 text-sm text-ink-muted">Passerelle de l'entreprise, Mistral, OpenAI, Gemini… tout service compatible OpenAI, avec sa clé et ses modèles.</p>
+      <section aria-labelledby="services-h" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="min-w-0 flex-[1_1_420px]">
+            <SectionTitle n={1} id="services-h" title="Services d'IA"
+              subtitle="Passerelle de l'entreprise, Mistral, OpenAI, Gemini… tout service compatible OpenAI, avec sa clé et ses modèles." />
           </div>
           {editing === null && (
             <button type="button" onClick={() => setEditing('new')} className={primary}>+ Ajouter un service</button>
@@ -556,9 +582,25 @@ export const AiPage: React.FC = () => {
         )}
       </section>
 
-      <OllamaSection onChanged={setState} />
+      <OllamaSection onChanged={setState} n={2} />
 
-      {state && <p className="m-0 text-[13px] text-ink-subtle">Enregistré dans <span className="font-mono">{state.folder}</span></p>}
+      {/* Choix des modèles : seulement quand il y a quelque chose à choisir */}
+      {!state ? (
+        <p className="m-0 flex items-center gap-2 text-sm text-ink-muted"><IconSpinner /> Chargement…</p>
+      ) : state.connections.length > 0 ? (
+        <section aria-labelledby="choix-h" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
+          <SectionTitle n={3} id="choix-h" title="Modèle utilisé par les apps"
+            subtitle="Le modèle par défaut sert à toutes les apps, sauf celles pour lesquelles vous en choisissez un autre. Dans les apps, on peut aussi prendre un autre de ces modèles au moment de lancer une génération ou une analyse." />
+          <Assignments state={state} onChanged={setState} />
+        </section>
+      ) : (
+        <section aria-labelledby="choix-h" className="flex flex-col gap-2 rounded-lg border border-dashed border-line-strong bg-surface px-6 py-5">
+          <SectionTitle n={3} id="choix-h" title="Modèle utilisé par les apps"
+            subtitle="Ajoutez un service ou des modèles Ollama ci-dessus : vous choisirez ensuite le modèle de chaque app ici." />
+        </section>
+      )}
+
+      {state && <p className="m-0 text-[13px] text-ink-subtle">Enregistré sur ce poste, dans <span className="font-mono" title={state.folder}>{shortPath(state.folder)}</span></p>}
     </div>
   );
 };

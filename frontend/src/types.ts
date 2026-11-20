@@ -21,6 +21,8 @@ export interface DockApp {
   folder: string | null;
   url: string | null;
   external: boolean;
+  /** Ouverte mais trop occupée pour répondre à Studio Dock (longue génération) : elle continue de tourner. */
+  busy?: boolean;
   error: { code: string; message: string } | null;
   /** Catalogue d'équipe : mode, installation sur ce poste, version disponible sur le partage. */
   mode: 'auto' | 'optionnel' | 'masque';
@@ -62,6 +64,10 @@ export interface DockState {
   canChooseFolder: boolean;
   /** Exe Windows lancé hors de son dossier d'installation : l'écran d'installation s'affiche. */
   needsInstall: boolean;
+  /** Première connexion : le tutoriel d'accueil s'affiche. */
+  welcome: boolean;
+  /** Ce poste tient le catalogue de l'équipe : l'onglet « Préparer pour l'équipe » s'affiche. */
+  catalogueAdmin: boolean;
   apps: DockApp[];
 }
 
@@ -75,6 +81,8 @@ export interface Settings {
   install: InstallState;
   catalogue_link: string;
   prepare_folder: string;
+  /** Ce poste tient le catalogue de l'équipe : l'onglet « Préparer pour l'équipe » s'affiche. */
+  catalogue_admin: boolean;
   downloads: string;
 }
 

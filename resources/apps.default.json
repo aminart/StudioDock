@@ -17,7 +17,7 @@
         "Modification directe dans l'aperçu, traduction en anglais ou en français, exports Word, HTML, Markdown."
       ],
       "tutorial": [
-        { "title": "Vérifiez la connexion au modèle", "text": "Dans l'écran Paramètres de SpecGen : adresse du service, clé et bouton Tester la connexion." },
+        { "title": "Vérifiez la connexion au modèle", "text": "Dans Studio Dock, Réglages › Modèles d'IA : un service doit être enregistré et testé. SpecGen l'utilise directement ; vous pouvez changer de modèle à chaque génération." },
         { "title": "Préparez vos sources", "text": "Convertissez si besoin vos documents et schémas draw.io en Markdown (étape 0)." },
         { "title": "Générez le contexte projet", "text": "Déposez les documents Markdown et les JSON de l'application, puis lancez la génération." },
         { "title": "Générez la spécification d'un écran", "text": "Ajoutez le JSON de l'écran ou du composant, et une capture si vous en avez une." },
@@ -41,7 +41,7 @@
         "Rapport d'audit, en français ou en anglais."
       ],
       "tutorial": [
-        { "title": "Vérifiez la connexion au modèle", "text": "Écran Réglages d'AuditErgo : Ollama ou LM Studio sur le poste, ou passerelle de l'organisation." },
+        { "title": "Vérifiez la connexion au modèle", "text": "Dans Studio Dock, Réglages › Modèles d'IA : la passerelle de l'entreprise ou un modèle local Ollama. AuditErgo l'utilise directement ; vous pouvez changer de modèle à chaque audit." },
         { "title": "Déposez votre fichier d'audit", "text": "AuditErgo en contrôle d'abord la forme et signale ce qui manque." },
         { "title": "Relisez les propositions", "text": "Critère, recommandation et gravité proposés pour chaque constat : acceptez, modifiez ou refusez." },
         { "title": "Récupérez l'audit complété", "text": "Téléchargez le fichier corrigé et le rapport." }
@@ -64,7 +64,7 @@
         "Historique de vos analyses, sur ce poste."
       ],
       "tutorial": [
-        { "title": "Vérifiez la connexion au modèle", "text": "Écran Réglages de DocAnalyser : ajoutez une connexion compatible OpenAI et testez-la." },
+        { "title": "Vérifiez la connexion au modèle", "text": "Dans Studio Dock, Réglages › Modèles d'IA : un service doit être enregistré et testé. DocAnalyser le propose, avec le badge Studio Dock, dans sa liste de modèles." },
         { "title": "Créez une nouvelle analyse", "text": "Déposez vos documents : entretiens, études, comptes rendus." },
         { "title": "Choisissez le modèle et lancez", "text": "Les gros documents sont découpés et traités par lots automatiquement." },
         { "title": "Explorez les résultats", "text": "Thèmes et parcours utilisateurs, chacun relié au passage qui le justifie." },

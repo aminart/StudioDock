@@ -21,6 +21,7 @@ BACKEND_DIR = Path(__file__).resolve().parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
+from app import journal  # noqa: E402
 from app.info import APP_ID, APP_NAME, DEFAULT_PORT, VERSION, logs_dir  # noqa: E402
 
 HOTE = "127.0.0.1"
@@ -30,9 +31,9 @@ def _sorties_sans_console() -> None:
     """Exe sans console (fenêtre seule) : sys.stdout vaut None ; les messages vont dans le journal."""
     if sys.stdout is None or sys.stderr is None:
         logs_dir().mkdir(parents=True, exist_ok=True)
-        journal = open(logs_dir() / "studiodock.log", "a", encoding="utf-8", buffering=1)  # noqa: SIM115
-        sys.stdout = sys.stdout or journal
-        sys.stderr = sys.stderr or journal
+        sortie = open(logs_dir() / "studiodock.log", "a", encoding="utf-8", buffering=1)  # noqa: SIM115
+        sys.stdout = sys.stdout or sortie
+        sys.stderr = sys.stderr or sortie
 
 
 def _deja_lance(port: int) -> bool:
@@ -98,6 +99,8 @@ def main(argv: list[str] | None = None) -> None:
     port = _port_disponible(args.port)
     url = f"http://{HOTE}:{port}"
     winapi.rattacher_au_groupe()
+    _journaliser_les_plantages()
+    journal.noter(f"Démarrage de {APP_NAME} {VERSION} (port {port}).")
 
     import uvicorn
 
@@ -106,7 +109,8 @@ def main(argv: list[str] | None = None) -> None:
     serveur = uvicorn.Server(uvicorn.Config(app, host=HOTE, port=port, log_level="warning", log_config=None))
     print(f"{APP_NAME} {VERSION} sur {url}")
 
-    def _arreter() -> None:
+    def _arreter(raison: str = "fenêtre fermée") -> None:
+        journal.noter(f"Arrêt de {APP_NAME} : {raison}.")
         pilote.tout_arreter()
         serveur.should_exit = True
 
@@ -127,6 +131,7 @@ def main(argv: list[str] | None = None) -> None:
         try:
             serveur.run()
         finally:
+            journal.noter(f"Arrêt de {APP_NAME} (sans fenêtre).")
             pilote.tout_arreter()
         return
 
@@ -146,6 +151,33 @@ def main(argv: list[str] | None = None) -> None:
     import app.main as module_api
 
     module_api.choisir_dossier = _choisir_dossier
+
+    # Fermer la fenêtre arrête les apps web lancées : s'il y en a, l'interface demande d'abord
+    # (réduire Studio Dock ou tout fermer). Sans réponse de l'interface, la fenêtre se ferme comme avant.
+    fermeture = {"confirmee": False}
+
+    def _fermer() -> None:
+        fermeture["confirmee"] = True
+        window.destroy()
+
+    def _a_la_fermeture() -> bool:
+        if fermeture["confirmee"] or args.check_window or not pilote.apps_ouvertes():
+            return True
+
+        def _demander() -> None:
+            try:
+                prise = window.evaluate_js("window.__studioDockFermeture ? window.__studioDockFermeture() : false")
+            except Exception:  # noqa: BLE001 : page pas chargée, moteur occupé
+                prise = False
+            if not prise:
+                _fermer()
+
+        threading.Thread(target=_demander, daemon=True).start()
+        return False  # fermeture annulée : la réponse viendra de l'interface
+
+    window.events.closing += _a_la_fermeture
+    module_api.reduire_fenetre = window.minimize
+    module_api.fermer_fenetre = _fermer
     if args.check_window:
         # Vérification du workflow : la fenêtre s'ouvre, charge l'interface, puis se ferme
         window.events.loaded += lambda: threading.Timer(2, window.destroy).start()
@@ -154,7 +186,7 @@ def main(argv: list[str] | None = None) -> None:
     except Exception as e:  # noqa: BLE001 : WebView2 absent ou bloqué
         print(f"Fenêtre impossible : {e}")
         if args.check_window:
-            _arreter()
+            _arreter("vérification de la fenêtre")
             sys.exit(3)
         # Repli : l'interface s'ouvre dans le navigateur ; fermer le message arrête Studio Dock
         winapi.ouvrir(url)
@@ -164,6 +196,29 @@ def main(argv: list[str] | None = None) -> None:
     finally:
         _arreter()
         fil.join(timeout=5)
+
+
+_plantages = None  # fichier gardé ouvert : faulthandler y écrit si Studio Dock plante brutalement
+
+
+def _journaliser_les_plantages() -> None:
+    """Erreurs non rattrapées (fil principal ou autre) dans studiodock.log ; plantage brutal (erreur fatale de
+    Python) dans plantages.log."""
+    global _plantages
+    import faulthandler
+    import traceback
+
+    def _noter(type_, valeur, trace) -> None:
+        journal.noter("Erreur non rattrapée :\n" + "".join(traceback.format_exception(type_, valeur, trace)))
+
+    sys.excepthook = _noter
+    threading.excepthook = lambda a: _noter(a.exc_type, a.exc_value, a.exc_traceback)
+    try:
+        logs_dir().mkdir(parents=True, exist_ok=True)
+        _plantages = open(logs_dir() / "plantages.log", "a", encoding="utf-8")  # noqa: SIM115
+        faulthandler.enable(_plantages)
+    except OSError:
+        pass
 
 
 def _vider_ancien_dossier(ancien: Path) -> None:
