@@ -22,10 +22,11 @@ const Point: React.FC<{ n: string; title: string; children: React.ReactNode }> =
 );
 
 /** Petite carte d'app factice, pour montrer où cliquer. */
-const DemoCard: React.FC<{ label: string; action: string; tone: 'primary' | 'secondary'; status: string }> = ({ label, action, tone, status }) => (
+const DemoCard: React.FC<{ label: string; icon: string | null; action: string; tone: 'primary' | 'secondary'; status: string }> = ({ label, icon, action, tone, status }) => (
   <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4" aria-hidden="true">
     <div className="flex items-center gap-3">
-      <span className="h-10 w-10 rounded-[22%] bg-gradient-to-br from-accent to-primary" />
+      {icon ? <img src={icon} alt="" width={40} height={40} className="rounded-[22%]" />
+        : <span className="h-10 w-10 rounded-[22%] bg-gradient-to-br from-accent to-primary" />}
       <span className="flex flex-col"><span className="font-semibold text-ink">{label}</span><span className="text-[13px] text-ink-muted">{status}</span></span>
     </div>
     <span className={`flex h-9 items-center justify-center rounded text-sm font-medium ${tone === 'primary' ? 'bg-primary text-primary-on' : 'border border-line-strong text-ink-body'}`}>{action}</span>
@@ -68,6 +69,8 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
   const steps = ['Bienvenue', 'Vos applications', 'Les applications de l\'équipe', ...(ai ? ['Modèles d\'IA'] : []),
     'Vos premières apps', 'C\'est prêt'];
   const connections = aiState?.connections ?? [];
+  // Icône de Mapline pour les cartes d'exemple, si elle est dans le catalogue
+  const exemple = state.apps.find((a) => a.id === 'mapline')?.iconUrl ?? null;
   const last = step === steps.length - 1;
   const teamOk = !!settings && (settings.shared_folder ? settings.hasCatalogue : !!settings.catalogue_link);
   const folder = settings?.install.folder ?? settings?.home ?? state.home;
@@ -233,15 +236,15 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
             </p>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="flex flex-col gap-2">
-                <DemoCard label="SpecGen" status="Disponible" action="Installer" tone="primary" />
+                <DemoCard label="Mapline" icon={exemple} status="Disponible" action="Installer" tone="primary" />
                 <span className="text-[13px] text-ink-muted"><b className="text-ink">Installer</b> copie l'app dans votre dossier.</span>
               </div>
               <div className="flex flex-col gap-2">
-                <DemoCard label="SpecGen" status="Installée" action="Lancer" tone="primary" />
+                <DemoCard label="Mapline" icon={exemple} status="Installée" action="Lancer" tone="primary" />
                 <span className="text-[13px] text-ink-muted"><b className="text-ink">Lancer</b> l'ouvre ; un clic sur la carte affiche sa fiche et sa prise en main.</span>
               </div>
               <div className="flex flex-col gap-2">
-                <DemoCard label="SpecGen" status="Version 1.4.0 disponible" action="Mettre à jour" tone="secondary" />
+                <DemoCard label="Mapline" icon={exemple} status="Nouvelle version disponible" action="Mettre à jour" tone="secondary" />
                 <span className="text-[13px] text-ink-muted"><b className="text-ink">Mettre à jour</b> quand l'équipe publie une version.</span>
               </div>
             </div>

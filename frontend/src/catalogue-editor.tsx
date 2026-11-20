@@ -122,7 +122,7 @@ const AppForm: React.FC<{
           <h4 className="m-0 text-[13px] font-semibold uppercase tracking-wide text-ink-subtle">L'app</h4>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="ed-name">Nom</Label>
-            <input id="ed-name" className={field} value={app.name} onChange={(e) => set('name', e.target.value)} placeholder="Traceline" />
+            <input id="ed-name" className={field} value={app.name} onChange={(e) => set('name', e.target.value)} placeholder="Nom de l'app" />
             {!existing && app.name && <Hint>Identifiant, programme et sous-dossier déduits du nom : <span className="font-mono">{compact || '—'}</span></Hint>}
           </div>
           <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
