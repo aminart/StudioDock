@@ -37,7 +37,7 @@ const TestBanner: React.FC<{ test: ConnectionTest }> = ({ test }) => (
 
 /* ---------- Formulaire d'une connexion ---------- */
 
-const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved: (s: AiState) => void; onCancel: () => void }> = ({
+export const ConnectionEditor: React.FC<{ existing: AiConnection | null; onSaved: (s: AiState) => void; onCancel: () => void }> = ({
   existing, onSaved, onCancel,
 }) => {
   const platform = React.useContext(PlatformContext);
@@ -335,7 +335,7 @@ const Assignments: React.FC<{ state: AiState; onChanged: (s: AiState) => void }>
 
 /* ---------- Ollama ---------- */
 
-const OllamaSection: React.FC<{ onChanged: (s: AiState) => void }> = ({ onChanged }) => {
+export const OllamaSection: React.FC<{ onChanged: (s: AiState) => void }> = ({ onChanged }) => {
   const [state, setState] = React.useState<OllamaState | null>(null);
   const [address, setAddress] = React.useState(OLLAMA);
   const [selected, setSelected] = React.useState<string[]>([]);

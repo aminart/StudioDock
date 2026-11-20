@@ -21,9 +21,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ### Ajouté
 
-- Tutoriel de première connexion : ce qu'est Studio Dock, où sont vos applications (votre dossier), où sont celles
-  de l'équipe (dossier réseau Windows, dossier en ligne ou plus tard, réglé sur place), les modèles d'IA, et
-  comment se servir des cartes. Il s'affiche tant qu'aucune app n'est installée et qu'il n'a pas été vu ; il se
+- Tutoriel de première connexion, qui fait toute la configuration : ce qu'est Studio Dock, où sont vos
+  applications (votre dossier), où sont celles de l'équipe (dossier réseau Windows, dossier en ligne ou plus tard),
+  la connexion aux modèles d'IA (service de l'entreprise avec test, ou modèles Ollama du poste), les premières
+  apps à installer (cochées, installées à la fin du tutoriel), et comment se servir des cartes. Il s'affiche tant qu'aucune app n'est installée et qu'il n'a pas été vu ; il se
   revoit depuis le pied de page (« Revoir le tutoriel ») ou Réglages › Mon espace.
 - Journal de session (logs\studiodock.log) : démarrages et arrêts de Studio Dock, lancement de chaque app, arrêt
   imprévu d'une app avec la fin de son journal, erreurs non rattrapées ; plantages brutaux dans plantages.log.
