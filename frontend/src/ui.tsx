@@ -79,15 +79,16 @@ export const ThemeToggle: React.FC = () => {
   );
 };
 
-export const Header: React.FC = () => (
+export const Header: React.FC<{ settings?: boolean }> = ({ settings }) => (
   <header className="sticky top-0 z-30 border-b border-line bg-surface">
     <div className="mx-auto flex min-h-[72px] max-w-[1200px] items-center gap-3 px-6">
       <a href="#/" className="flex flex-grow items-center gap-3 no-underline">
         <DockLogo />
         <span className="text-lg font-bold leading-tight text-ink">Studio Dock</span>
       </a>
-      <a href="#/reglages" data-tour="reglages" aria-label="Réglages de Studio Dock" title="Réglages"
-        className="flex h-10 items-center gap-2 rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body no-underline hover:bg-surface-3">
+      <a href="#/reglages" data-tour="reglages" aria-label="Réglages de Studio Dock" title="Réglages" aria-current={settings ? 'page' : undefined}
+        className={`flex h-10 items-center gap-2 rounded border px-3.5 text-sm font-medium no-underline ${settings
+          ? 'border-primary bg-accent-soft text-accent-ink' : 'border-line-strong bg-surface text-ink-body hover:bg-surface-3'}`}>
         {stroke(16, undefined, <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></>)}
         <span className="hidden sm:inline">Réglages</span>
       </a>
@@ -164,7 +165,7 @@ export const statusText = (app: DockApp): string => {
   switch (app.state) {
     case 'on': return app.external ? 'Ouverte hors de Studio Dock' : app.busy ? 'Ouverte · occupée' : 'Ouverte';
     case 'starting': return 'Démarrage…';
-    case 'off': return app.update ? 'Mise à jour disponible' : 'Prête';
+    case 'off': return 'Prête';
     case 'missing': return app.availableVersion || app.kind === 'native' ? 'À installer' : 'Introuvable';
     case 'error': return app.error?.code === 'port_busy' ? 'Impossible de lancer' : 'Erreur au lancement';
   }
@@ -174,12 +175,20 @@ const dotClass = (app: DockApp) =>
   app.state === 'on' ? 'bg-success'
     : app.state === 'starting' || app.progress !== null || app.waiting ? 'bg-warning'
       : app.state === 'error' ? 'bg-danger'
-        : app.update ? 'bg-accent' : 'bg-line-dashed';
+        : 'bg-line-dashed';
 const statusClass = (app: DockApp) =>
   app.state === 'on' ? 'text-success-text'
     : app.state === 'starting' || app.progress !== null || app.waiting ? 'text-warning-text'
       : app.state === 'error' ? 'text-danger-text'
-        : app.update ? 'text-accent-ink' : 'text-ink-subtle';
+        : 'text-ink-subtle';
+
+/** Chemin abrégé à ses deux derniers dossiers ; le chemin complet reste au survol. */
+export const shortPath = (path: string | null | undefined): string => {
+  if (!path) return '…';
+  const sep = path.includes('\\') ? '\\' : '/';
+  const parts = path.split(sep).filter(Boolean);
+  return parts.length <= 3 ? path : `…${sep}${parts.slice(-2).join(sep)}`;
+};
 
 export const where = (app: DockApp) => (app.kind === 'web' ? `localhost:${app.port}` : 'Application de bureau');
 
@@ -207,7 +216,8 @@ export type Actions = {
   open: (app: DockApp) => void;
   dismiss: (app: DockApp) => void;
   folder: (app: DockApp) => void;
-  logs: () => void;
+  /** Ouvre les journaux et dit quoi envoyer ; l'app concernée, si on la connaît. */
+  logs: (app?: DockApp) => void;
   link: (url: string) => void;
   install: (app: DockApp) => void;
   uninstall: (app: DockApp) => void;
@@ -218,14 +228,14 @@ const btnPrimary = 'flex h-11 items-center justify-center gap-2 rounded border-0
 const btnInk = 'flex h-11 min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded border-0 bg-ink px-5 font-medium text-surface hover:opacity-90';
 const btnGhost = 'flex h-11 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded border border-line-strong bg-surface px-4 font-medium text-ink-body hover:bg-surface-3';
 
-/** Petit bouton « mettre à jour » à côté de l'action principale d'une carte. */
-export const UpdateButton: React.FC<{ app: DockApp; actions: Actions }> = ({ app, actions }) =>
+/** Mise à jour d'une app : le même bouton sur la carte et sur la fiche, en couleur d'accent. */
+export const UpdateButton: React.FC<{ app: DockApp; actions: Actions; wide?: boolean }> = ({ app, actions, wide }) =>
   !app.update || app.progress !== null || app.state === 'starting' || app.waiting ? null : (
     <button type="button" data-tour="maj" onClick={() => actions.install(app)}
-      aria-label={`Mettre à jour ${app.name} en version ${app.availableVersion}${app.state === 'on' ? ' (l\'app sera arrêtée)' : ''}`}
-      title={`Mettre à jour en ${app.availableVersion}`}
-      className="flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded border border-line-strong bg-surface px-3 text-sm font-medium text-accent-ink hover:bg-surface-3">
-      <IconRefresh /> {app.availableVersion}
+      aria-label={`Mettre à jour ${app.name} en version ${app.availableVersion}${app.state === 'on' ? ' (l\'app sera fermée)' : ''}`}
+      title={app.state === 'on' ? 'L\'app sera fermée pendant la mise à jour' : undefined}
+      className={`flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded border border-accent bg-accent-soft px-4 text-sm font-medium text-accent-ink hover:bg-accent-softer ${wide ? 'h-11 min-w-[170px]' : 'w-full'}`}>
+      <IconRefresh /> Mettre à jour · {app.availableVersion}
     </button>
   );
 
@@ -234,16 +244,6 @@ export const ProgressBar: React.FC<{ app: DockApp }> = ({ app }) =>
     <div role="progressbar" aria-label={`Installation de ${app.name}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={app.progress}
       className="h-2 overflow-hidden rounded-full bg-line">
       <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${app.progress}%` }} />
-    </div>
-  );
-
-/** Bandeau « nouvelle version » : la version déposée sur le partage est plus récente que celle installée. */
-export const UpdateBanner: React.FC<{ app: DockApp; actions: Actions }> = ({ app, actions }) =>
-  !app.update || app.progress !== null ? null : (
-    <div className="flex items-center gap-2.5 rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-[13px] text-warning-text">
-      <IconDownload className="shrink-0" />
-      <span className="flex-grow">Version {app.availableVersion} disponible{app.state === 'on' ? ' (l\'app sera arrêtée)' : ''}</span>
-      <button type="button" onClick={() => actions.install(app)} className="shrink-0 whitespace-nowrap border-0 bg-transparent p-0 font-medium text-warning-text underline">Mettre à jour</button>
     </div>
   );
 
@@ -271,7 +271,7 @@ export const AppNotice: React.FC<{ app: DockApp; actions: Actions; compact?: boo
           </span>
         </div>
         <div className="flex gap-3 pl-6 font-medium">
-          <button type="button" onClick={() => actions.logs()} className="border-0 bg-transparent p-0 text-danger-text underline">Journal</button>
+          <button type="button" onClick={() => actions.logs(app)} className="border-0 bg-transparent p-0 text-danger-text underline">Signaler le problème</button>
           <button type="button" onClick={() => actions.dismiss(app)} className="border-0 bg-transparent p-0 text-danger-text underline">Masquer</button>
         </div>
       </div>
@@ -342,16 +342,10 @@ export const AppActions: React.FC<{ app: DockApp; actions: Actions; pending: boo
         <button type="button" onClick={() => actions.open(app)} className={btnInk} aria-label={`Ouvrir ${app.name} dans le navigateur`}>
           <IconExternal /> Ouvrir
         </button>
-        {wide ? (
-          <button type="button" onClick={() => actions.stop(app)} className={`${btnGhost} flex-1`}>
-            <IconStop /> Arrêter
-          </button>
-        ) : (
-          <button type="button" onClick={() => actions.stop(app)} aria-label={`Arrêter ${app.name}`} title="Arrêter"
-            className={`${btnGhost} w-11 shrink-0 px-0`}>
-            <IconStop size={16} />
-          </button>
-        )}
+        <button type="button" onClick={() => actions.stop(app)} aria-label={`Arrêter ${app.name}`}
+          className={`${btnGhost} ${wide ? 'flex-1' : 'shrink-0 px-3.5'}`}>
+          <IconStop /> Arrêter
+        </button>
       </div>
     );
   }

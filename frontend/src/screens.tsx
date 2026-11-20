@@ -1,11 +1,17 @@
 import React from 'react';
-import { api } from './api';
+import { api, iaApi } from './api';
 import { InstallFolderForm } from './install';
 import type { DockApp, DockState, Settings } from './types';
 import {
   Actions, AppActions, AppIcon, AppNotice, IconAlert, IconBack, IconChevron, IconDownload, IconExternal, IconFolder, IconRefresh, IconSpinner,
-  PlatformContext, ProgressBar, ScopeNote, SettingsTabs, StatusChip, StatusLine, TeamContext, UpdateBanner, UpdateButton, WaitingActions, where,
+  PlatformContext, ProgressBar, ScopeNote, SettingsTabs, StatusChip, StatusLine, TeamContext, UpdateButton, shortPath, WaitingActions, where,
 } from './ui';
+
+/** Où s'ouvre l'app, en mots courants. */
+const kindText = (app: DockApp, platform: string) =>
+  app.kind === 'web' ? 's\'ouvre dans le navigateur' : platform === 'mac' ? 'application Mac' : 'application Windows';
+
+const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
 /** Mes applications : installées sur ce poste, ou imposées à l'équipe (installation en cours ou en attente). */
 export const isMine = (app: DockApp, team: boolean) => !team || app.installed || app.mode === 'auto';
@@ -16,40 +22,59 @@ const CardMenu: React.FC<{ app: DockApp; actions: Actions }> = ({ app, actions }
   const team = React.useContext(TeamContext);
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
+  const trigger = React.useRef<HTMLButtonElement>(null);
+  const menu = React.useRef<HTMLDivElement>(null);
+  const items = () => Array.from(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+  // Fermer en rendant le focus au bouton ⋮ (sauf clic ailleurs : le focus suit le clic)
+  const close = (refocus = true) => { setOpen(false); if (refocus) trigger.current?.focus(); };
   React.useEffect(() => {
     if (!open) return;
-    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', esc);
-    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+    items()[0]?.focus();
+    const outside = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', outside);
+    return () => document.removeEventListener('mousedown', outside);
   }, [open]);
+  // Flèches haut et bas, Début, Fin, Échap et Tab, comme un menu
+  const onKey = (e: React.KeyboardEvent) => {
+    const list = items();
+    const i = list.indexOf(document.activeElement as HTMLElement);
+    const go = (n: number) => { e.preventDefault(); list[(n + list.length) % list.length]?.focus(); };
+    if (e.key === 'ArrowDown') go(i + 1);
+    else if (e.key === 'ArrowUp') go(i - 1);
+    else if (e.key === 'Home') go(0);
+    else if (e.key === 'End') go(list.length - 1);
+    else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    else if (e.key === 'Tab') setOpen(false);
+  };
+  const openWith = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); setOpen(true); }
+  };
   const item = 'flex min-h-10 w-full items-center gap-2.5 rounded-sm border-0 bg-transparent px-3 text-left text-sm text-ink-body hover:bg-surface-3';
   const removable = team && app.installed;
   return (
     <div ref={ref} data-tour="menu" className="relative -mr-2 -mt-1.5">
-      <button type="button" onClick={() => setOpen(!open)} aria-label={`Plus d'actions pour ${app.name}`} aria-haspopup="menu" aria-expanded={open}
+      <button ref={trigger} type="button" onClick={() => setOpen(!open)} onKeyDown={openWith} aria-label={`Plus d'actions pour ${app.name}`} aria-haspopup="menu" aria-expanded={open}
         className="flex h-9 w-9 items-center justify-center rounded border-0 bg-transparent text-ink-subtle hover:bg-surface-3 hover:text-ink">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="19" r="1.8" /></svg>
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 top-10 z-10 flex min-w-[250px] flex-col rounded-md border border-line-strong bg-surface p-1.5 shadow-lg">
-          <a role="menuitem" href={`#/app/${app.id}`} className={`${item} no-underline`}>Fiche et prise en main</a>
+        <div ref={menu} role="menu" aria-label={`Actions pour ${app.name}`} onKeyDown={onKey} className="absolute right-0 top-10 z-10 flex min-w-[250px] flex-col rounded-md border border-line-strong bg-surface p-1.5 shadow-lg">
+          <a role="menuitem" tabIndex={-1} href={`#/app/${app.id}`} className={`${item} no-underline`}>Fiche et prise en main</a>
           {app.folder && (app.location || !team) && (
-            <button type="button" role="menuitem" className={item} onClick={() => { setOpen(false); actions.folder(app); }}>
+            <button type="button" role="menuitem" tabIndex={-1} className={item} onClick={() => { close(); actions.folder(app); }}>
               Afficher le dossier de l'app
             </button>
           )}
           {removable && (app.mode === 'auto' ? (
-            <span role="menuitem" aria-disabled="true" className="px-3 py-2 text-[13px] text-ink-subtle">
+            <span role="menuitem" tabIndex={-1} aria-disabled="true" className="px-3 py-2 outline-offset-[-2px] text-[13px] text-ink-subtle">
               Installée pour toute l'équipe : ne peut pas être retirée
             </span>
           ) : app.kind === 'web' ? (
-            <button type="button" role="menuitem" className={item} onClick={() => { setOpen(false); actions.uninstall(app); }}>
+            <button type="button" role="menuitem" tabIndex={-1} className={item} onClick={() => { close(); actions.uninstall(app); }}>
               Retirer de ce poste
             </button>
           ) : (
-            <span role="menuitem" aria-disabled="true" className="px-3 py-2 text-[13px] text-ink-subtle">
+            <span role="menuitem" tabIndex={-1} aria-disabled="true" className="px-3 py-2 outline-offset-[-2px] text-[13px] text-ink-subtle">
               Se désinstalle depuis les réglages du système
             </span>
           ))}
@@ -85,15 +110,17 @@ const AppCard: React.FC<{ app: DockApp; actions: Actions; pending: boolean }> = 
         <ProgressBar app={app} />
         <div className="flex gap-2">
           <AppActions app={app} actions={actions} pending={pending} />
-          <UpdateButton app={app} actions={actions} />
         </div>
+        <UpdateButton app={app} actions={actions} />
       </div>
     </article>
   );
 };
 
 /** Carte compacte d'une app proposée par l'équipe, pas encore installée sur ce poste. */
-const AvailableCard: React.FC<{ app: DockApp; actions: Actions }> = ({ app, actions }) => (
+const AvailableCard: React.FC<{ app: DockApp; actions: Actions }> = ({ app, actions }) => {
+  const platform = React.useContext(PlatformContext);
+  return (
   <article className="flex flex-col gap-3 rounded-lg border border-dashed border-line-strong bg-surface px-[18px] py-4">
     <div className="flex items-center gap-3.5">
       <AppIcon app={app} size={40} />
@@ -119,8 +146,8 @@ const AvailableCard: React.FC<{ app: DockApp; actions: Actions }> = ({ app, acti
       </div>
     ) : (
       <div className="flex items-center gap-3">
-        <span className="clamp-1 flex-grow font-mono text-[13px] text-ink-subtle">
-          {app.availableVersion ? `v${app.availableVersion} · ` : ''}{app.kind === 'web' ? 'app web' : 'app de bureau'}
+        <span className="min-w-0 flex-grow text-[13px] leading-snug text-ink-subtle">
+          {app.availableVersion ? `Version ${app.availableVersion} · ${kindText(app, platform)}` : capitalize(kindText(app, platform))}
         </span>
         {app.availableVersion ? (
           <button type="button" onClick={() => actions.install(app)}
@@ -128,12 +155,13 @@ const AvailableCard: React.FC<{ app: DockApp; actions: Actions }> = ({ app, acti
             <IconDownload /> Installer
           </button>
         ) : (
-          <span className="text-[13px] text-ink-subtle">Indisponible</span>
+          <span className="text-[13px] text-ink-subtle">Pas encore publiée</span>
         )}
       </div>
     )}
   </article>
-);
+  );
+};
 
 const grid = { gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' };
 const gridAvailable = { gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' };
@@ -273,10 +301,29 @@ const Info: React.FC<{ label: string; children: React.ReactNode; mono?: boolean 
   </>
 );
 
+/** Modèle d'IA utilisé par l'app (réglé dans Studio Dock), avec un lien pour le changer. */
+const AiModel: React.FC<{ app: DockApp }> = ({ app }) => {
+  const [text, setText] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    iaApi.state().then((s) => {
+      const choice = s.apps.find((a) => a.id === app.id)?.choice ?? s.default;
+      if (choice && 'own' in choice) return setText('Réglé dans l\'app elle-même');
+      const conn = choice && s.connections.find((c) => c.id === choice.connection);
+      setText(conn && choice ? `${choice.model} (${conn.name})` : 'Aucun modèle réglé');
+    }).catch(() => setText(null));
+  }, [app.id]);
+  return (
+    <span className="flex flex-col gap-0.5">
+      <span>{text ?? 'Le modèle réglé dans Studio Dock'}</span>
+      <a href="#/ia" className="self-start text-accent no-underline hover:underline">Changer</a>
+    </span>
+  );
+};
+
 const versionText = (app: DockApp) => {
   if (!app.version) return app.availableVersion ? `${app.availableVersion} disponible` : '—';
-  if (app.update) return `${app.version} · ${app.availableVersion} disponible`;
-  return app.availableVersion ? `${app.version} · à jour` : app.version;
+  if (app.update) return `${app.version} (${app.availableVersion} disponible)`;
+  return app.availableVersion ? `${app.version}, à jour` : app.version;
 };
 
 export const AppPage: React.FC<{ app: DockApp; actions: Actions; pending: boolean }> = ({ app, actions, pending }) => {
@@ -300,10 +347,12 @@ export const AppPage: React.FC<{ app: DockApp; actions: Actions; pending: boolea
             </div>
             {app.tagline && <p className="m-0 text-[17px] text-ink-muted">{app.tagline}</p>}
           </div>
-          <AppActions app={app} actions={actions} pending={pending} wide />
+          <div className="flex flex-wrap gap-2">
+            <AppActions app={app} actions={actions} pending={pending} wide />
+            <UpdateButton app={app} actions={actions} wide />
+          </div>
         </div>
         <ProgressBar app={app} />
-        <UpdateBanner app={app} actions={actions} />
         <AppNotice app={app} actions={actions} />
       </section>
 
@@ -348,10 +397,10 @@ export const AppPage: React.FC<{ app: DockApp; actions: Actions; pending: boolea
             <h2 className="m-0 mb-3.5 text-[17px] font-bold text-ink">En bref</h2>
             <dl className="m-0 grid gap-x-4 gap-y-3 text-sm" style={{ gridTemplateColumns: '130px minmax(0, 1fr)' }}>
               <Info label="Version">{versionText(app)}</Info>
-              <Info label="Intelligence artificielle">{app.ai ? 'Utilise votre connexion au modèle' : 'Aucune'}</Info>
+              <Info label="Intelligence artificielle">{app.ai ? <AiModel app={app} /> : 'Aucune'}</Info>
               <Info label="Hors ligne">{app.ai ? 'Non, a besoin du modèle' : 'Oui, entièrement'}</Info>
               <Info label="S'ouvre dans">{app.kind === 'web' ? 'Votre navigateur' : 'Sa propre fenêtre'}</Info>
-              {team && <Info label="Installation">{app.mode === 'auto' ? "Pour toute l'équipe" : 'Choisie par vous'}</Info>}
+              {team && <Info label="Installation">{app.mode === 'auto' ? "Installée pour toute l'équipe" : 'Installée à votre demande'}</Info>}
             </dl>
           </section>
 
@@ -373,9 +422,9 @@ export const AppPage: React.FC<{ app: DockApp; actions: Actions; pending: boolea
                   <IconFolder /> Afficher le dossier
                 </button>
               )}
-              <button type="button" onClick={() => actions.logs()}
+              <button type="button" onClick={() => actions.logs(app)}
                 className="flex h-10 items-center rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body hover:bg-surface-3">
-                Journaux
+                Signaler un problème
               </button>
               {team && app.installed && app.mode !== 'auto' && app.kind === 'web' && (
                 <button type="button" onClick={() => actions.uninstall(app)}
@@ -529,20 +578,19 @@ export const NetworkPanel: React.FC<{
   };
   const status = settings?.shared_folder
     ? settings.hasCatalogue ? { ok: true, text: 'Accessible, catalogue de l\'équipe trouvé.' }
-      : settings.reachable ? { ok: false, text: 'Dossier accessible, mais sans catalogue.json.' }
+      : settings.reachable ? { ok: false, text: 'Dossier accessible, mais le catalogue de l\'équipe n\'y est pas.' }
         : { ok: false, text: 'Dossier inaccessible depuis ce poste (réseau, VPN, droits).' }
     : null;
 
   return (
     <div className="flex flex-col gap-3 border-t border-line pt-4">
       <p className="m-0 text-sm text-ink-body">
-        Le dossier de l'équipe avec <span className="font-mono">catalogue.json</span> et un sous-dossier par application.
+        Le dossier de l'équipe qui contient son catalogue et un sous-dossier par application.
         Les apps n'y sont jamais lancées : elles sont copiées sur ce poste.
       </p>
       <form className="flex flex-wrap gap-2.5" onSubmit={(e) => { e.preventDefault(); save(value.trim()); }}>
         <label htmlFor="partage" className="sr-only">Chemin du dossier réseau de l'équipe</label>
-        <input id="partage" value={value} onChange={(e) => setValue(e.target.value)} className={fieldClass}
-          placeholder={platform === 'mac' ? '/Volumes/Equipe UX/Studio Dock' : 'Q:\\Studio Dock  ou  \\\\serveur\\partage\\Studio Dock'} />
+        <input id="partage" value={value} onChange={(e) => setValue(e.target.value)} className={fieldClass} aria-describedby="partage-exemple" />
         {settings?.canChooseFolder && (
           <button type="button" onClick={choose} disabled={busy}
             className="flex h-11 items-center gap-2 rounded border border-line-strong bg-surface px-4 font-medium text-ink-body hover:bg-surface-3">
@@ -553,6 +601,10 @@ export const NetworkPanel: React.FC<{
           {busy && <IconSpinner />} Enregistrer
         </button>
       </form>
+      <p id="partage-exemple" className="-mt-1 m-0 text-[13px] text-ink-muted">
+        Par exemple <span className="font-mono">{platform === 'mac' ? '/Volumes/Equipe UX/Studio Dock' : 'Q:\\Studio Dock'}</span>
+        {platform !== 'mac' && <> ou <span className="font-mono">{'\\\\serveur\\partage\\Studio Dock'}</span></>}.
+      </p>
       {status && (
         <p className={`m-0 flex flex-wrap items-center gap-2 text-sm ${status.ok ? 'text-success-text' : 'text-warning-text'}`}>
           {status.ok ? <span className="h-2 w-2 rounded-full bg-success" aria-hidden="true" /> : <IconAlert />} {status.text}
@@ -606,20 +658,23 @@ export const OnlinePanel: React.FC<{ settings: Settings | null; onSaved: (s: Set
       )}
       <form className="flex flex-wrap gap-2.5" onSubmit={(e) => { e.preventDefault(); save(); }}>
         <label htmlFor="lien-catalogue" className="sr-only">Lien du catalogue en ligne</label>
-        <input id="lien-catalogue" value={value} onChange={(e) => setValue(e.target.value)} placeholder="https://entreprise.sharepoint.com/…" className={fieldClass} />
+        <input id="lien-catalogue" value={value} onChange={(e) => setValue(e.target.value)} className={fieldClass} aria-describedby="lien-exemple" />
         <button type="submit" disabled={busy || (value.trim() === (settings?.catalogue_link ?? '') && !(networkFirst && value.trim()))} className={saveClass}>
           {busy && <IconSpinner />} {networkFirst && value.trim() ? 'Utiliser le dossier en ligne' : 'Enregistrer'}
         </button>
       </form>
+      <p id="lien-exemple" className="-mt-1 m-0 text-[13px] text-ink-muted">
+        Le lien de partage du dossier, par exemple <span className="font-mono">https://entreprise.sharepoint.com/…</span>
+      </p>
       {message && <p role="status" className="m-0 text-sm text-ink-muted">{message}</p>}
-      {settings && <p className="m-0 text-[13px] text-ink-subtle">Téléchargements surveillés : <span className="font-mono">{settings.downloads}</span></p>}
+      {settings && <p className="m-0 text-[13px] text-ink-subtle">Téléchargements surveillés : <span className="font-mono" title={settings.downloads}>{shortPath(settings.downloads)}</span></p>}
     </div>
   );
 };
 
-const AppsHint: React.FC<{ folder: string | null | undefined; sep: string }> = ({ folder, sep }) => (
+const AppsHint: React.FC = () => (
   <p className="m-0 text-[13px] text-ink-muted">
-    Vos apps : <span className="font-mono text-ink-body">{folder ? `${folder}${sep}apps${sep}` : 'apps'}&lt;app&gt;</span>.
+    Chaque app a son propre dossier dans <span className="font-mono text-ink-body">apps</span>.
     Pour installer vous-même une version (sans l'équipe), déposez son exe dans le dossier de l'app ; Studio Dock lance la plus récente.
   </p>
 );
@@ -642,13 +697,13 @@ const InstallSection: React.FC<{
       <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-6">
         {sectionTitle(1, 'Mes applications', 'Sur ce poste : vos applications installées sont rangées ici, une par dossier, et lancées depuis cet endroit.')}
         <div className="flex flex-wrap items-center gap-3">
-          <span className="min-w-0 flex-grow break-all rounded bg-surface-2 px-3.5 py-2.5 font-mono text-sm">{settings?.home ?? '…'}</span>
+          <span title={settings?.home} className="min-w-0 flex-grow break-all rounded bg-surface-2 px-3.5 py-2.5 font-mono text-sm">{shortPath(settings?.home)}</span>
           <button type="button" onClick={openHome}
             className="flex h-10 items-center gap-2 rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body hover:bg-surface-3">
             <IconFolder /> {show}
           </button>
         </div>
-        <AppsHint folder={settings?.home} sep="/" />
+        <AppsHint />
       </section>
     );
   }
@@ -658,7 +713,7 @@ const InstallSection: React.FC<{
       {sectionTitle(1, 'Mes applications', 'Le dossier de ce poste où sont installés Studio Dock et vos applications, et d\'où elles sont lancées. Il vous est propre : personne d\'autre n\'y écrit.')}
       {!editing ? (
         <div className="flex flex-wrap items-center gap-3">
-          <span className="min-w-0 flex-grow break-all rounded bg-surface-2 px-3.5 py-2.5 font-mono text-sm">{install.folder ?? '…'}</span>
+          <span title={install.folder ?? undefined} className="min-w-0 flex-grow break-all rounded bg-surface-2 px-3.5 py-2.5 font-mono text-sm">{shortPath(install.folder)}</span>
           <button type="button" onClick={openHome}
             className="flex h-10 items-center gap-2 rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body hover:bg-surface-3">
             <IconFolder /> {show}
@@ -667,7 +722,7 @@ const InstallSection: React.FC<{
             className="flex h-10 items-center gap-2 rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body hover:bg-surface-3">
             Changer de dossier
           </button>
-          <div className="basis-full"><AppsHint folder={install.folder} sep={platform === 'windows' ? '\\' : '/'} /></div>
+          <div className="basis-full"><AppsHint /></div>
         </div>
       ) : (
         <>

@@ -115,7 +115,7 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
         <h2 className="m-0 text-[19px] font-bold text-ink">1 · Dossier du catalogue</h2>
         <form className="flex flex-wrap gap-2.5" onSubmit={(e) => { e.preventDefault(); load(folder); }}>
           <label htmlFor="preparation" className="sr-only">Dossier du catalogue</label>
-          <input id="preparation" value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="Q:\Studio Dock  ou  C:\Users\vous\Documents\Studio Dock - équipe"
+          <input id="preparation" value={folder} onChange={(e) => setFolder(e.target.value)} aria-describedby="preparation-exemple"
             className={`${input} h-11 flex-[1_1_320px] text-sm`} />
           {canChoose && (
             <button type="button" onClick={choose} disabled={busy}
@@ -128,6 +128,9 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
             {busy && <IconSpinner />} Ouvrir
           </button>
         </form>
+        <p id="preparation-exemple" className="-mt-1 m-0 text-[13px] text-ink-muted">
+          Par exemple <span className="font-mono">{'Q:\\Studio Dock'}</span>, ou pour un catalogue en ligne <span className="font-mono">{'C:\\Users\\vous\\Documents\\Studio Dock - équipe'}</span>.
+        </p>
         {sharedFolder && folder.trim() !== sharedFolder && (
           <button type="button" onClick={() => { setFolder(sharedFolder); load(sharedFolder); }}
             className="self-start border-0 bg-transparent p-0 text-sm text-accent underline">

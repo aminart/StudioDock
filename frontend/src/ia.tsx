@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActionError, api, iaApi, toBase64 } from './api';
 import type { AiApp, AiChoice, AiConnection, AiState, ConnectionForm, ConnectionTest, OllamaState } from './types';
-import { IconAlert, IconBack, IconDownload, IconExternal, IconRefresh, IconSpinner, PlatformContext, SettingsTabs } from './ui';
+import { IconAlert, IconBack, IconDownload, IconExternal, IconRefresh, IconSpinner, PlatformContext, SettingsTabs, shortPath } from './ui';
 
 /* Réglages › Modèles d'IA : connexions communes à toutes les apps de la suite (même modèle que DocAnalyser),
    modèles locaux avec Ollama, et modèle utilisé par chaque app. */
@@ -558,7 +558,7 @@ export const AiPage: React.FC = () => {
 
       <OllamaSection onChanged={setState} />
 
-      {state && <p className="m-0 text-[13px] text-ink-subtle">Enregistré dans <span className="font-mono">{state.folder}</span></p>}
+      {state && <p className="m-0 text-[13px] text-ink-subtle">Enregistré sur ce poste, dans <span className="font-mono" title={state.folder}>{shortPath(state.folder)}</span></p>}
     </div>
   );
 };

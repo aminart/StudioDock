@@ -5,6 +5,7 @@ import { AiPage } from './ia';
 import { PreparePage } from './prepare';
 import { AppPage, Home, SettingsPage } from './screens';
 import { Tour } from './tour';
+import { useConfirm } from './dialog';
 import { Welcome } from './welcome';
 import type { DockApp, DockState } from './types';
 import { Actions, AdminContext, Header, IconAlert, IconDownload, PlatformContext, TeamContext } from './ui';
@@ -64,16 +65,59 @@ export const App: React.FC = () => {
     }
   }, [refresh]);
 
+  const [dialog, ask] = useConfirm();
+  const interrompu = (app: DockApp) => app.busy
+    ? `${app.name} est en train de travailler : la génération ou l'analyse en cours sera interrompue.`
+    : `Un travail en cours dans ${app.name} (génération, analyse) serait interrompu. Pensez à enregistrer ce qui doit l'être.`;
+  // Ouvre le dossier des journaux et dit quoi envoyer
+  const report = (app?: DockApp) => run(null, async () => {
+    await api.openFolder('logs');
+    await ask({
+      title: 'Signaler un problème',
+      text: <>
+        <p className="m-0">Le dossier des journaux vient de s'ouvrir. Joignez à votre message :</p>
+        <ul className="m-0 flex flex-col gap-1 pl-5">
+          <li><span className="font-mono">studiodock.log</span>, le journal de Studio Dock ;</li>
+          <li>{app ? <><span className="font-mono">{app.id}.log</span>, celui de {app.name}</> : <>le fichier de l'app concernée, par exemple <span className="font-mono">specgen.log</span></>}.</li>
+        </ul>
+        <p className="m-0">Dites aussi ce que vous faisiez au moment du souci. Envoyez-les à la personne qui gère les apps de l'équipe.</p>
+      </>,
+    });
+  });
+
   const actions: Actions = {
     launch: (app) => run(app, () => api.launch(app.id)),
-    stop: (app) => run(app, () => api.stop(app.id)),
+    stop: async (app) => {
+      const ok = await ask({ title: `Arrêter ${app.name} ?`, text: <p className="m-0">{interrompu(app)}</p>, confirm: 'Arrêter', danger: app.busy });
+      if (ok) run(app, () => api.stop(app.id));
+    },
     open: (app) => run(null, () => api.open(app.id)),
     dismiss: (app) => run(null, () => api.dismiss(app.id)),
     folder: (app) => run(null, () => api.folder(app.id)),
-    logs: () => run(null, () => api.openFolder('logs')),
+    logs: report,
     link: (url) => run(null, () => api.openLink(url)),
-    install: (app) => run(null, async () => { await api.install(app.id); if (app.isNew) await api.seen([app.id]); }),
-    uninstall: (app) => run(app, () => api.uninstall(app.id)),
+    install: async (app) => {
+      if (app.installed && app.state === 'on') {
+        const ok = await ask({
+          title: `Mettre à jour ${app.name} ?`,
+          text: <p className="m-0">{app.name} est ouverte : elle sera fermée, puis mise à jour en version {app.availableVersion}. {interrompu(app)}</p>,
+          confirm: 'Fermer et mettre à jour', danger: app.busy,
+        });
+        if (!ok) return;
+      }
+      run(null, async () => { await api.install(app.id); if (app.isNew) await api.seen([app.id]); });
+    },
+    uninstall: async (app) => {
+      const ok = await ask({
+        title: `Retirer ${app.name} de ce poste ?`,
+        text: <>
+          <p className="m-0"><strong className="font-semibold text-ink">Supprimé :</strong> le programme, dans votre dossier d'applications.{app.state === 'on' ? ` ${app.name} sera d'abord fermée.` : ''}</p>
+          <p className="m-0"><strong className="font-semibold text-ink">Conservé :</strong> vos documents, votre historique et vos réglages. Vous retrouverez tout en la réinstallant depuis « Disponibles pour vous ».</p>
+        </>,
+        confirm: 'Retirer', danger: true,
+      });
+      if (ok) run(app, () => api.uninstall(app.id));
+    },
     cancelDownload: (app) => run(null, () => api.cancelDownload(app.id)),
   };
   const catalogue = {
@@ -102,7 +146,7 @@ export const App: React.FC = () => {
     <TeamContext.Provider value={team}>
     <AdminContext.Provider value={!!state?.catalogueAdmin}>
     <div className="flex min-h-screen flex-col bg-bg font-sans text-[15px] leading-normal text-ink-body">
-      <Header />
+      <Header settings={settingsRoute || iaRoute || prepareRoute} />
       <main className="mx-auto box-border flex w-full max-w-[1200px] flex-grow flex-col gap-6 px-6 pb-8 pt-10">
         {offline && (
           <div role="alert" className="flex items-center gap-2 rounded-md bg-danger-soft px-4 py-3 text-sm text-danger-text">
@@ -187,10 +231,11 @@ export const App: React.FC = () => {
           <span data-tour="pied" className="ml-auto flex gap-4">
             <a href="#/visite" className="text-accent no-underline hover:underline">Visite guidée</a>
             <a href="#/bienvenue" className="text-accent no-underline hover:underline">Revoir le tutoriel</a>
-            <button type="button" onClick={() => actions.logs()} className="border-0 bg-transparent p-0 text-accent hover:underline">Journaux</button>
+            <button type="button" onClick={() => actions.logs()} className="border-0 bg-transparent p-0 text-accent hover:underline">Signaler un problème</button>
           </span>
         </div>
       </footer>
+      {dialog}
       {toast && (
         <div role="status" className="fixed bottom-6 left-1/2 z-10 flex max-w-[560px] -translate-x-1/2 items-start gap-2 rounded-md bg-ink px-4 py-3 text-sm text-surface shadow-lg">
           <IconAlert className="mt-0.5 shrink-0" /> <span className="whitespace-pre-line">{toast}</span>

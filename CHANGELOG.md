@@ -15,7 +15,23 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
   catalogue de l'équipe » dans Réglages › Mon espace (cochée d'office si un dossier de préparation a déjà servi).
   Les autres membres ne voient que Mon espace et Modèles d'IA.
 - Le lien « Dossier d'installation » quitte le pied de page : votre dossier se présente et s'ouvre dans
-  Réglages › Mon espace › Mes applications. Le pied de page garde « Journaux ».
+  Réglages › Mon espace › Mes applications.
+- Mise à jour d'une app : un seul bouton « Mettre à jour · 1.4.0 », en couleur d'accent, sous les boutons de la
+  carte et à côté de « Lancer » sur la fiche (fini le bouton « ↻ 1.4.0 » sans verbe et le bandeau jaune). La ligne
+  d'état garde l'état de l'app (« Prête », « Ouverte ») au lieu d'afficher « Mise à jour disponible ».
+- Le bouton ■ des cartes porte son libellé « Arrêter ».
+- « Journaux » devient « Signaler un problème » : le dossier des journaux s'ouvre et Studio Dock dit quels
+  fichiers envoyer (studiodock.log et celui de l'app).
+- Mots plus courants : « s'ouvre dans le navigateur » et « application Windows » au lieu de « app web » et
+  « app de bureau », « Pas encore publiée » au lieu de « Indisponible », « Installée à votre demande »,
+  « Version 1.3.0 (1.4.0 disponible) ». Les chemins longs sont abrégés à leurs deux derniers dossiers
+  (chemin complet au survol).
+- Fiches par défaut : l'étape « Vérifiez la connexion au modèle » de SpecGen, AuditErgo et DocAnalyser renvoie à
+  Réglages › Modèles d'IA de Studio Dock. « En bref » indique le modèle utilisé par l'app, avec un lien
+  « Changer ».
+- Le bouton « Réglages » de l'en-tête montre qu'on est dans les réglages.
+- Les exemples de saisie (chemins, liens) sont écrits sous les champs, et le texte indicatif des champs passe
+  au contraste AA.
 
 ### Corrigé
 
@@ -26,6 +42,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ### Ajouté
 
+- Confirmation avant d'arrêter une app, de la mettre à jour pendant qu'elle est ouverte, ou de la retirer de ce
+  poste. Pour le retrait, la boîte dit ce qui part (le programme) et ce qui reste (documents, historique,
+  réglages).
+- Menu ⋮ des cartes au clavier : focus sur le premier choix à l'ouverture, flèches haut et bas, Début, Fin,
+  Échap rend le focus au bouton.
 - Tutoriel de première connexion, qui fait toute la configuration : ce qu'est Studio Dock, où sont vos
   applications (votre dossier), où sont celles de l'équipe (dossier réseau Windows, dossier en ligne ou plus tard),
   la connexion aux modèles d'IA (service de l'entreprise avec test, ou modèles Ollama du poste), les premières

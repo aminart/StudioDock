@@ -40,7 +40,7 @@ export const InstallFolderForm: React.FC<{
     <div className="flex flex-col gap-3">
       <form className="flex flex-wrap gap-2.5" onSubmit={(e) => { e.preventDefault(); if (value.trim()) submit(); }}>
         <label htmlFor="installation" className="sr-only">Dossier d'installation</label>
-        <input id="installation" value={value} onChange={(e) => setValue(e.target.value)} placeholder="C:\Users\vous\Apps\StudioDock"
+        <input id="installation" value={value} onChange={(e) => setValue(e.target.value)} aria-describedby="installation-exemple"
           className="h-11 min-w-0 flex-[1_1_320px] rounded border border-line-strong bg-surface-2 px-3.5 font-mono text-sm text-ink focus:outline focus:outline-2 focus:outline-focus" />
         {canChoose && (
           <button type="button" onClick={choose} disabled={busy}
@@ -57,6 +57,9 @@ export const InstallFolderForm: React.FC<{
             className="h-11 border-0 bg-transparent px-2 text-sm text-ink-muted underline">Annuler</button>
         )}
       </form>
+      <p id="installation-exemple" className="-mt-1 m-0 text-[13px] text-ink-muted">
+        Un dossier à vous sur ce poste, par exemple <span className="font-mono">{'C:\\Users\\vous\\Apps\\StudioDock'}</span>.
+      </p>
       {error && (
         <p role="alert" className="m-0 flex items-start gap-2 text-sm text-danger-text"><IconAlert className="mt-0.5 shrink-0" /> {error}</p>
       )}
