@@ -130,7 +130,7 @@ const AppForm: React.FC<{
             {([['web', 'S\'ouvre dans le navigateur', 'Comme SpecGen : un exe que Studio Dock copie et lance.'],
                ['native', 'App de bureau', 'Comme Mapline : un installateur (.exe ou .msi) lancé par Studio Dock.']] as const).map(([value, label, hint]) => (
               <label key={value} className="flex cursor-pointer items-start gap-2.5 rounded border border-line px-3 py-2 hover:bg-surface-2">
-                <input type="radio" name="ed-kind" className="mt-1" checked={app.kind === value} onChange={() => set('kind', value)} />
+                <input type="radio" name="ed-kind" className="mt-0.5" checked={app.kind === value} onChange={() => set('kind', value)} />
                 <span className="flex flex-col"><span className="text-sm text-ink">{label}</span><Hint>{hint}</Hint></span>
               </label>
             ))}

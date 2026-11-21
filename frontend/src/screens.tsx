@@ -507,7 +507,7 @@ export const SettingsPage: React.FC<{ onSaved: () => void; openFolder: (name: 'h
         <section aria-labelledby="avance-h" className="flex flex-col gap-3 rounded-lg border border-line bg-surface px-6 py-5">
           <h2 id="avance-h" className="m-0 text-[13px] font-semibold uppercase tracking-wide text-ink-subtle">Option avancée</h2>
           <label className="flex cursor-pointer items-start gap-3">
-            <input type="checkbox" className="mt-1 h-4 w-4" checked={settings.catalogue_admin}
+            <input type="checkbox" className="mt-0.5" checked={settings.catalogue_admin}
               onChange={async (e) => { setSettings(await api.saveCatalogueAdmin(e.target.checked)); onSaved(); }} />
             <span className="flex flex-col gap-0.5">
               <span className="text-[15px] font-semibold text-ink">Je gère le catalogue de l'équipe</span>
@@ -544,7 +544,7 @@ const TeamSection: React.FC<{
 
   const option = (value: Source, label: string, hint: string) => (
     <label className={`flex flex-1 cursor-pointer items-start gap-3 rounded-md border px-4 py-3 ${source === value ? 'border-primary bg-surface' : 'border-line bg-surface-2 hover:border-line-strong'}`}>
-      <input type="radio" name="source-equipe" className="mt-1" checked={source === value} onChange={() => setSource(value)} />
+      <input type="radio" name="source-equipe" className="mt-0.5" checked={source === value} onChange={() => setSource(value)} />
       <span className="flex flex-col gap-0.5">
         <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">
           {label}

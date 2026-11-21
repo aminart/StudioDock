@@ -132,7 +132,7 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
                 ['plus-tard', 'Je le ferai plus tard', 'Vous pourrez l\'indiquer dans Réglages › Mon espace.'],
               ] as const).map(([value, label, hint]) => (
                 <label key={value} className={`flex cursor-pointer items-start gap-3 rounded-md border px-4 py-3 ${source === value ? 'border-primary bg-surface' : 'border-line bg-surface-2 hover:border-line-strong'}`}>
-                  <input type="radio" name="welcome-source" className="mt-1" checked={source === value} onChange={() => setSource(value)} />
+                  <input type="radio" name="welcome-source" className="mt-0.5" checked={source === value} onChange={() => setSource(value)} />
                   <span className="flex flex-col"><span className="text-sm font-semibold text-ink">{label}</span><span className="text-[13px] text-ink-muted">{hint}</span></span>
                 </label>
               ))}
@@ -166,7 +166,7 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
                 ['plus-tard', 'Plus tard', 'Chaque app garde ses propres réglages.'],
               ] as const).map(([value, label, hint]) => (
                 <label key={value} className={`flex flex-1 cursor-pointer items-start gap-3 rounded-md border px-4 py-3 ${ia === value ? 'border-primary bg-surface' : 'border-line bg-surface-2 hover:border-line-strong'}`}>
-                  <input type="radio" name="welcome-ia" className="mt-1" checked={ia === value} onChange={() => setIa(value)} />
+                  <input type="radio" name="welcome-ia" className="mt-0.5" checked={ia === value} onChange={() => setIa(value)} />
                   <span className="flex flex-col"><span className="text-sm font-semibold text-ink">{label}</span><span className="text-[13px] text-ink-muted">{hint}</span></span>
                 </label>
               ))}
@@ -193,7 +193,7 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
                   {installables.map((a: DockApp) => (
                     <li key={a.id}>
                       <label className="flex cursor-pointer items-center gap-3.5 px-4 py-3 hover:bg-surface-2">
-                        <input type="checkbox" className="h-4 w-4" checked={chosen.has(a.id)}
+                        <input type="checkbox" checked={chosen.has(a.id)}
                           onChange={(e) => setChosen((c) => { const n = new Set(c); if (e.target.checked) n.add(a.id); else n.delete(a.id); return n; })} />
                         {a.iconUrl ? <img src={a.iconUrl} alt="" width={36} height={36} className="rounded-[22%]" /> : <span className="h-9 w-9 rounded-[22%] bg-surface-3" />}
                         <span className="flex min-w-0 flex-1 flex-col">

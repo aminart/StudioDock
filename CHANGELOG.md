@@ -4,6 +4,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+## [0.6.2] — 2026-11-21
+
+### Modifié
+
+- Cases à cocher et boutons radio aux couleurs de Night Navy, en clair comme en sombre : contour gris foncé,
+  coché en bleu marine (coche blanche, point central pour les radios), survol en bleu, anneau de focus du design
+  system au clavier. Ils remplacent les contrôles par défaut de Windows, partout dans Studio Dock (Mon espace,
+  tutoriel, Modèles d'IA, fiches du catalogue).
+
 ## [0.6.1] — 2026-11-20
 
 ### Modifié

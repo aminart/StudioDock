@@ -9,6 +9,79 @@
   input::placeholder, textarea::placeholder { @apply text-ink-subtle opacity-100; }
 }
 
+/* Cases à cocher et boutons radio aux couleurs de Night Navy (le paquet ne les définit pas encore).
+   18 px, contour ink-subtle (contraste 3:1 minimum pour un contrôle, WCAG 1.4.11), coché en primary,
+   survol en accent, anneau de focus du design system. Appliqué à tous les <input> de ces deux types. */
+@layer base {
+  input[type='checkbox'],
+  input[type='radio'] {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: none;
+    display: inline-grid;
+    place-content: center;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    border: 1.5px solid var(--nn-ink-subtle);
+    background-color: var(--nn-surface);
+    cursor: pointer;
+    transition: background-color 0.12s, border-color 0.12s;
+  }
+  input[type='checkbox'] { border-radius: 4px; }
+  input[type='radio'] { border-radius: 9999px; }
+
+  /* Coche (case) et point (radio), dessinés en ::before pour suivre le thème */
+  input[type='checkbox']::before,
+  input[type='radio']::before {
+    content: '';
+    transform: scale(0);
+    transition: transform 0.12s ease-out;
+  }
+  input[type='checkbox']::before {
+    width: 12px;
+    height: 12px;
+    background-color: var(--nn-on-primary);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.2 6.3l2.4 2.4 5.2-5.4' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.2 6.3l2.4 2.4 5.2-5.4' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+  input[type='radio']::before {
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+    background-color: var(--nn-primary);
+  }
+
+  input[type='checkbox']:checked {
+    background-color: var(--nn-primary);
+    border-color: var(--nn-primary);
+  }
+  input[type='radio']:checked { border-color: var(--nn-primary); }
+  input[type='checkbox']:checked::before,
+  input[type='radio']:checked::before { transform: scale(1); }
+
+  input[type='checkbox']:not(:disabled):hover,
+  input[type='radio']:not(:disabled):hover { border-color: var(--nn-accent); }
+  input[type='checkbox']:checked:not(:disabled):hover { background-color: var(--nn-primary-hover); border-color: var(--nn-primary-hover); }
+
+  input[type='checkbox']:focus-visible,
+  input[type='radio']:focus-visible {
+    outline: 2px solid var(--nn-focus);
+    outline-offset: 2px;
+  }
+
+  input[type='checkbox']:disabled,
+  input[type='radio']:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    input[type='checkbox'], input[type='radio'],
+    input[type='checkbox']::before, input[type='radio']::before { transition: none; }
+  }
+}
+
 @keyframes sd-spin { to { transform: rotate(360deg); } }
 .sd-spin { animation: sd-spin 0.9s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .sd-spin { animation: none; } }
