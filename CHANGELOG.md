@@ -12,6 +12,9 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
   coché en bleu marine (coche blanche, point central pour les radios), survol en bleu, anneau de focus du design
   system au clavier. Ils remplacent les contrôles par défaut de Windows, partout dans Studio Dock (Mon espace,
   tutoriel, Modèles d'IA, fiches du catalogue).
+- « Je gère le catalogue de l'équipe » (Réglages › Mon espace) est décoché par défaut sur tous les postes, même
+  ceux qui ont déjà préparé un catalogue : la personne qui le tient le coche une fois pour retrouver l'onglet
+  « Préparer pour l'équipe ».
 
 ## [0.6.1] — 2026-11-20
 

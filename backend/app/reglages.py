@@ -89,11 +89,8 @@ def dossier_partage() -> Path | None:
 
 def gere_le_catalogue() -> bool:
     """Ce poste est celui de la personne qui tient le catalogue de l'équipe : l'onglet « Préparer pour l'équipe »
-    s'affiche. Par défaut, oui si un dossier de préparation a déjà servi (avant que ce choix existe)."""
-    valeurs = lire()
-    if "catalogue_admin" in valeurs:
-        return bool(valeurs["catalogue_admin"])
-    return bool(valeurs.get("prepare_folder"))
+    s'affiche. Décoché par défaut, même si un dossier de préparation a déjà servi : on le coche dans Mon espace."""
+    return bool(lire().get("catalogue_admin", False))
 
 
 def deja_vues() -> set[str]:
