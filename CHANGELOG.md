@@ -14,6 +14,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
   tutoriel, Modèles d'IA, fiches du catalogue).
 - Design system Night Navy 1.2.1 (au lieu de 1.0.0) : ce style des cases et des radios vient désormais du design
   system, commun à SpecGen, AuditErgo et DocAnalyser.
+- Tutoriel allégé :
+  - Bienvenue : textes des points raccourcis.
+  - Applications de l'équipe : trois choix côte à côte aux libellés courts, et le bouton « Continuer ».
+  - Modèles d'IA : introduction plus courte.
+  - C'est prêt : une confirmation, les apps qui s'installent et un seul rappel, sans les cartes d'exemple. Le pied
+    de page n'a plus « Passer le tutoriel ». Ses boutons deviennent « Visite guidée » et « Voir mes applications ».
 - « Je gère le catalogue de l'équipe » (Réglages › Mon espace) est décoché par défaut sur tous les postes, même
   ceux qui ont déjà préparé un catalogue : la personne qui le tient le coche une fois pour retrouver l'onglet
   « Préparer pour l'équipe ».

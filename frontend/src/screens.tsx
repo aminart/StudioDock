@@ -575,7 +575,9 @@ const saveClass = 'flex h-11 items-center gap-2 rounded border-0 bg-primary px-5
 
 export const NetworkPanel: React.FC<{
   settings: Settings | null; platform: 'windows' | 'mac' | 'linux'; openShared: () => void; onSaved: (s: Settings) => void;
-}> = ({ settings, platform, openShared, onSaved }) => {
+  /** Phrase d'introduction (le tutoriel en a une plus courte). */
+  intro?: React.ReactNode;
+}> = ({ settings, platform, openShared, onSaved, intro }) => {
   const [value, setValue] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState<string | null>(null);
@@ -609,8 +611,8 @@ export const NetworkPanel: React.FC<{
   return (
     <div className="flex flex-col gap-3 border-t border-line pt-4">
       <p className="m-0 text-sm text-ink-body">
-        Le dossier de l'équipe qui contient son catalogue et un sous-dossier par application.
-        Les apps n'y sont jamais lancées : elles sont copiées sur ce poste.
+        {intro ?? <>Le dossier de l'équipe qui contient son catalogue et un sous-dossier par application.
+          Les apps n'y sont jamais lancées : elles sont copiées sur ce poste.</>}
       </p>
       <form className="flex flex-wrap gap-2.5" onSubmit={(e) => { e.preventDefault(); save(value.trim()); }}>
         <label htmlFor="partage" className="sr-only">Chemin du dossier réseau de l'équipe</label>
