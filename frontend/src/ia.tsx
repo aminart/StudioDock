@@ -470,7 +470,7 @@ export const OllamaSection: React.FC<{ onChanged: (s: AiState) => void; n?: numb
                 {state.models.map((m) => (
                   <li key={m.name}>
                     <label className="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-surface-2">
-                      <input type="checkbox" className="h-4 w-4 accent-[var(--nn-primary,currentColor)]" checked={selected.includes(m.name)}
+                      <input type="checkbox" checked={selected.includes(m.name)}
                         onChange={(e) => { setSaved(false); setSelected((s) => e.target.checked ? [...s, m.name] : s.filter((x) => x !== m.name)); }} />
                       <span className="flex-1 font-mono text-sm text-ink">{m.name}</span>
                       <span className="text-[13px] text-ink-muted">{[m.parameters, m.size].filter(Boolean).join(' · ')}</span>

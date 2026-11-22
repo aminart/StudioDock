@@ -3,7 +3,7 @@ import { api, iaApi } from './api';
 import { ConnectionEditor, OllamaSection } from './ia';
 import { NetworkPanel, OnlinePanel } from './screens';
 import type { AiState, DockApp, DockState, Settings } from './types';
-import { DockLogo, IconFolder, IconRefresh, IconSpinner, PlatformContext, shortPath } from './ui';
+import { DockLogo, IconFolder, IconSpinner, PlatformContext, shortPath } from './ui';
 
 /* Tutoriel de première connexion : ce qu'est Studio Dock, où sont vos apps, d'où viennent celles de l'équipe,
    les modèles d'IA, et comment se servir des cartes. Revu à tout moment depuis le pied de page. */
@@ -21,17 +21,11 @@ const Point: React.FC<{ n: string; title: string; children: React.ReactNode }> =
   </li>
 );
 
-/** Petite carte d'app factice, pour montrer où cliquer. */
-const DemoCard: React.FC<{ label: string; icon: string | null; action: React.ReactNode; tone: 'primary' | 'accent'; status: string }> = ({ label, icon, action, tone, status }) => (
-  <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4" aria-hidden="true">
-    <div className="flex items-center gap-3">
-      {icon ? <img src={icon} alt="" width={40} height={40} className="rounded-[22%]" />
-        : <span className="h-10 w-10 rounded-[22%] bg-gradient-to-br from-accent to-primary" />}
-      <span className="flex flex-col"><span className="font-semibold text-ink">{label}</span><span className="text-[13px] text-ink-muted">{status}</span></span>
-    </div>
-    <span className={`flex h-9 items-center justify-center rounded text-sm font-medium gap-2 ${tone === 'primary' ? 'bg-primary text-primary-on' : 'border border-accent bg-accent-soft text-accent-ink'}`}>{action}</span>
-  </div>
-);
+/** « A, B et C » */
+const names = (apps: DockApp[]) => {
+  const n = apps.map((a) => a.name);
+  return n.length > 1 ? `${n.slice(0, -1).join(', ')} et ${n[n.length - 1]}` : n[0] ?? '';
+};
 
 type Source = 'reseau' | 'en-ligne' | 'plus-tard';
 type Ia = 'service' | 'ollama' | 'plus-tard';
@@ -69,8 +63,6 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
   const steps = ['Bienvenue', 'Les applications de l\'équipe', ...(ai ? ['Modèles d\'IA'] : []),
     'Vos premières apps', 'C\'est prêt'];
   const connections = aiState?.connections ?? [];
-  // Icône de Mapline pour les cartes d'exemple, si elle est dans le catalogue
-  const exemple = state.apps.find((a) => a.id === 'mapline')?.iconUrl ?? null;
   const last = step === steps.length - 1;
   const teamOk = !!settings && (settings.shared_folder ? settings.hasCatalogue : !!settings.catalogue_link);
   const folder = settings?.install.folder ?? settings?.home ?? state.home;
@@ -102,8 +94,8 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
             </div>
             <ul className="m-0 flex list-none flex-col gap-4 p-0">
               <Point n="1" title="Installez les outils de l'équipe">SpecGen, AuditErgo, DocAnalyser, Mapline… en un clic, sans chercher les fichiers.</Point>
-              <Point n="2" title="Lancez-les depuis ici">Chaque outil s'ouvre dans votre navigateur ou dans sa fenêtre ; Studio Dock les garde en route.</Point>
-              <Point n="3" title="Recevez les nouvelles versions">Quand l'équipe publie une mise à jour, sa carte vous la propose.</Point>
+              <Point n="2" title="Lancez-les depuis ici">Chaque outil s'ouvre dans votre navigateur ou dans sa fenêtre.</Point>
+              <Point n="3" title="Recevez les nouvelles versions">Quand l'équipe publie une mise à jour, vous la recevez ici.</Point>
             </ul>
             {/* Le dossier est choisi à l'installation : rappelé ici, sans étape à part */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-surface-2 px-4 py-3">
@@ -124,20 +116,21 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
               L'équipe dépose ses outils et leurs nouvelles versions dans un dossier commun. Indiquez-le à Studio Dock :
               il y trouvera les apps à vous proposer et les copiera dans votre dossier.
             </p>
-            <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+            <fieldset className="m-0 grid gap-2 border-0 p-0 sm:grid-cols-3">
               <legend className="sr-only">Où sont les applications de l'équipe</legend>
               {([
-                ['reseau', 'Un dossier réseau Windows', 'Un lecteur de l\'entreprise, par exemple Q:\\Studio Dock. Le plus simple.'],
-                ['en-ligne', 'Un dossier en ligne', 'SharePoint ou Teams, ouvert avec votre compte de l\'entreprise.'],
-                ['plus-tard', 'Je le ferai plus tard', 'Vous pourrez l\'indiquer dans Réglages › Mon espace.'],
+                ['reseau', 'Un dossier réseau', platform === 'mac' ? 'Exemple /Volumes/Equipe.' : 'Exemple Q:\\Studio Dock.'],
+                ['en-ligne', 'Un dossier en ligne', 'SharePoint ou autre.'],
+                ['plus-tard', 'Je le ferai plus tard', 'Dans Réglages.'],
               ] as const).map(([value, label, hint]) => (
                 <label key={value} className={`flex cursor-pointer items-start gap-3 rounded-md border px-4 py-3 ${source === value ? 'border-primary bg-surface' : 'border-line bg-surface-2 hover:border-line-strong'}`}>
-                  <input type="radio" name="welcome-source" className="mt-1" checked={source === value} onChange={() => setSource(value)} />
+                  <input type="radio" name="welcome-source" className="mt-0.5" checked={source === value} onChange={() => setSource(value)} />
                   <span className="flex flex-col"><span className="text-sm font-semibold text-ink">{label}</span><span className="text-[13px] text-ink-muted">{hint}</span></span>
                 </label>
               ))}
             </fieldset>
-            {source === 'reseau' && <NetworkPanel settings={settings} platform={platform} openShared={() => api.openFolder('shared')} onSaved={setSettings} />}
+            {source === 'reseau' && <NetworkPanel settings={settings} platform={platform} openShared={() => api.openFolder('shared')} onSaved={setSettings}
+              intro="Emplacement du dossier de l'équipe" />}
             {source === 'en-ligne' && <OnlinePanel settings={settings} onSaved={setSettings} />}
             {source !== 'plus-tard' && !teamOk && (
               <p className="m-0 text-[13px] text-ink-subtle">Vous ne connaissez pas l'adresse ? Demandez-la à la personne qui gère le catalogue de l'équipe.</p>
@@ -149,8 +142,8 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
           <>
             <h1 ref={titre} tabIndex={-1} className="m-0 text-[26px] font-bold leading-tight text-ink outline-none">L'IA, réglée une seule fois</h1>
             <p className="m-0 text-[15px] text-ink-body">
-              {state.apps.filter((a) => a.ai).map((a) => a.name).join(', ')} utilisent un modèle d'IA. Réglez votre connexion ici :
-              toutes ces apps la reprennent. Vous pourrez en ajouter d'autres et choisir un modèle par app dans Réglages › Modèles d'IA.
+              Réglez votre connexion ici : toutes vos apps d'IA la reprennent.<br />
+              Vous pourrez en ajouter d'autres et choisir un modèle par app dans Réglages › Modèles d'IA.
             </p>
             {connections.length > 0 && (
               <p role="status" className="m-0 flex items-center gap-2 rounded-md bg-success-soft px-4 py-2.5 text-sm text-success-text">
@@ -166,7 +159,7 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
                 ['plus-tard', 'Plus tard', 'Chaque app garde ses propres réglages.'],
               ] as const).map(([value, label, hint]) => (
                 <label key={value} className={`flex flex-1 cursor-pointer items-start gap-3 rounded-md border px-4 py-3 ${ia === value ? 'border-primary bg-surface' : 'border-line bg-surface-2 hover:border-line-strong'}`}>
-                  <input type="radio" name="welcome-ia" className="mt-1" checked={ia === value} onChange={() => setIa(value)} />
+                  <input type="radio" name="welcome-ia" className="mt-0.5" checked={ia === value} onChange={() => setIa(value)} />
                   <span className="flex flex-col"><span className="text-sm font-semibold text-ink">{label}</span><span className="text-[13px] text-ink-muted">{hint}</span></span>
                 </label>
               ))}
@@ -193,7 +186,7 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
                   {installables.map((a: DockApp) => (
                     <li key={a.id}>
                       <label className="flex cursor-pointer items-center gap-3.5 px-4 py-3 hover:bg-surface-2">
-                        <input type="checkbox" className="h-4 w-4" checked={chosen.has(a.id)}
+                        <input type="checkbox" checked={chosen.has(a.id)}
                           onChange={(e) => setChosen((c) => { const n = new Set(c); if (e.target.checked) n.add(a.id); else n.delete(a.id); return n; })} />
                         {a.iconUrl ? <img src={a.iconUrl} alt="" width={36} height={36} className="rounded-[22%]" /> : <span className="h-9 w-9 rounded-[22%] bg-surface-3" />}
                         <span className="flex min-w-0 flex-1 flex-col">
@@ -216,33 +209,23 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
           </>
         );
       default:
+        // Version courte : une confirmation, ce qui s'installe, un seul rappel
         return (
-          <>
+          <div className="flex flex-col items-center gap-4 py-5 text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-success-soft text-success" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+            </span>
             <h1 ref={titre} tabIndex={-1} className="m-0 text-[26px] font-bold leading-tight text-ink outline-none">C'est prêt</h1>
-            <p className="m-0 text-[15px] text-ink-body">
-              {toInstall.length ? `${toInstall.map((a) => a.name).join(', ')} ${toInstall.length > 1 ? 'vont être installées' : 'va être installée'} : suivez l'avancement sur ${toInstall.length > 1 ? 'leur carte' : 'sa carte'}.`
-                : teamOk ? 'Les applications de l\'équipe apparaissent dans « Disponibles pour vous ».'
-                  : 'Dès que le dossier de l\'équipe sera indiqué, ses applications apparaîtront dans « Disponibles pour vous ».'}
+            <p className="m-0 max-w-[520px] text-[15px] text-ink-body">
+              {toInstall.length ? `${names(toInstall)} ${toInstall.length > 1 ? 's\'installent. Suivez-les' : 's\'installe. Suivez-la'} sur l'accueil.`
+                : teamOk ? 'Les applications de l\'équipe vous attendent sur l\'accueil.'
+                  : 'Les applications de l\'équipe apparaîtront sur l\'accueil dès que son dossier sera indiqué.'}
             </p>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="flex flex-col gap-2">
-                <DemoCard label="Mapline" icon={exemple} status="Disponible" action="Installer" tone="primary" />
-                <span className="text-[13px] text-ink-muted"><b className="text-ink">Installer</b> copie l'app dans votre dossier.</span>
-              </div>
-              <div className="flex flex-col gap-2">
-                <DemoCard label="Mapline" icon={exemple} status="Installée" action="Lancer" tone="primary" />
-                <span className="text-[13px] text-ink-muted"><b className="text-ink">Lancer</b> l'ouvre ; un clic sur la carte affiche sa fiche et sa prise en main.</span>
-              </div>
-              <div className="flex flex-col gap-2">
-                <DemoCard label="Mapline" icon={exemple} status="Prête" action={<><IconRefresh /> Mettre à jour · 2.0</>} tone="accent" />
-                <span className="text-[13px] text-ink-muted"><b className="text-ink">Mettre à jour</b> quand l'équipe publie une version.</span>
-              </div>
-            </div>
-            <p className="m-0 text-sm text-ink-muted">
-              Les apps qui s'ouvrent dans le navigateur s'arrêtent avec Studio Dock : gardez-le ouvert, ou réduit dans la barre des tâches, pendant que vous travaillez.
-              La visite guidée vous montre ensuite chaque élément de la page ; elle et ce tutoriel restent accessibles en bas de la page.
+            <p className="m-0 flex max-w-[520px] items-center gap-2 rounded-md bg-surface-2 px-3.5 py-2.5 text-left text-[13px] text-ink-muted">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01" /><path d="M11 12h1v4h1" /></svg>
+              Gardez Studio Dock ouvert ou réduit : les apps s'arrêtent avec lui.
             </p>
-          </>
+          </div>
         );
     }
   };
@@ -259,24 +242,29 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
       </ol>
       <div className="flex min-h-[380px] flex-col gap-5 px-8 py-7">{body()}</div>
       <div className="flex flex-wrap items-center gap-3 border-t border-line bg-surface-2 px-8 py-4">
-        <button type="button" onClick={() => finish()} disabled={closing} className="h-11 border-0 bg-transparent px-1 text-sm text-ink-muted hover:text-ink">
-          Passer le tutoriel
-        </button>
-        <span className="flex-grow" />
-        {step > 0 && <button type="button" onClick={() => setStep(step - 1)} className={secondary}>Précédent</button>}
         {last ? (
+          // Dernière étape : plus rien à passer, Précédent à gauche
           <>
+            <button type="button" onClick={() => setStep(step - 1)} className={secondary}>Précédent</button>
+            <span className="flex-grow" />
             <button type="button" onClick={() => finish('#/visite', true)} disabled={closing} className={secondary}>
-              Faire la visite guidée
+              Visite guidée
             </button>
             <button type="button" onClick={() => finish(undefined, true)} disabled={closing} className={primary}>
-              {closing && <IconSpinner />} {toInstall.length ? 'Installer et voir mes applications' : 'Voir mes applications'}
+              {closing && <IconSpinner />} Voir mes applications
             </button>
           </>
         ) : (
-          <button type="button" onClick={() => setStep(step + 1)} className={primary}>
-            {steps[step] === 'Les applications de l\'équipe' && source !== 'plus-tard' && !teamOk ? 'Continuer sans' : 'Suivant'}
+          <>
+          <button type="button" onClick={() => finish()} disabled={closing} className="h-11 border-0 bg-transparent px-1 text-sm text-ink-muted hover:text-ink">
+            Passer le tutoriel
           </button>
+          <span className="flex-grow" />
+          {step > 0 && <button type="button" onClick={() => setStep(step - 1)} className={secondary}>Précédent</button>}
+          <button type="button" onClick={() => setStep(step + 1)} className={primary}>
+            {steps[step] === 'Les applications de l\'équipe' ? 'Continuer' : 'Suivant'}
+          </button>
+          </>
         )}
       </div>
     </section>

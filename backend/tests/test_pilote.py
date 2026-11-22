@@ -183,10 +183,13 @@ def test_onglet_preparer_pour_qui_tient_le_catalogue(client, maison, tmp_path):
     assert client.get("/api/apps").json()["catalogueAdmin"] is False
 
 
-def test_preparation_deja_utilisee_garde_l_onglet(client, maison, tmp_path):
+def test_onglet_preparer_decoche_par_defaut(client, maison, tmp_path):
     from app import reglages
 
+    # Même si un dossier de préparation a déjà servi : la case reste à cocher soi-même
     reglages.modifier(prepare_folder=str(tmp_path))
+    assert client.get("/api/settings").json()["catalogue_admin"] is False
+    client.put("/api/settings", json={"catalogue_admin": True})
     assert client.get("/api/settings").json()["catalogue_admin"] is True
 
 
