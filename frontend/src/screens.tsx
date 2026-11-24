@@ -4,12 +4,11 @@ import { InstallFolderForm } from './install';
 import type { DockApp, DockState, Settings } from './types';
 import {
   Actions, AppActions, AppIcon, AppNotice, IconAlert, IconBack, IconChevron, IconDownload, IconExternal, IconFolder, IconRefresh, IconSpinner,
-  PlatformContext, ProgressBar, ScopeNote, SectionTitle, SettingsTabs, StatusChip, StatusLine, TeamContext, UpdateButton, shortPath, WaitingActions, where,
-} from './ui';
+  PlatformContext, ProgressBar, ScopeNote, SectionTitle, SettingsTabs, StatusChip, StatusLine, TeamContext, UpdateButton, shortPath, WaitingActions, inBrowser, where } from './ui';
 
 /** Où s'ouvre l'app, en mots courants. */
 const kindText = (app: DockApp, platform: string) =>
-  app.kind === 'web' ? 's\'ouvre dans le navigateur' : platform === 'mac' ? 'application Mac' : 'application Windows';
+  app.kind !== 'native' ? 's\'ouvre dans le navigateur' : platform === 'mac' ? 'application Mac' : 'application Windows';
 
 const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
@@ -69,7 +68,7 @@ const CardMenu: React.FC<{ app: DockApp; actions: Actions }> = ({ app, actions }
             <span role="menuitem" tabIndex={-1} aria-disabled="true" className="px-3 py-2 outline-offset-[-2px] text-[13px] text-ink-subtle">
               Installée pour toute l'équipe : ne peut pas être retirée
             </span>
-          ) : app.kind === 'web' ? (
+          ) : inBrowser(app) ? (
             <button type="button" role="menuitem" tabIndex={-1} className={item} onClick={() => { close(); actions.uninstall(app); }}>
               Retirer de ce poste
             </button>
@@ -426,7 +425,7 @@ export const AppPage: React.FC<{ app: DockApp; actions: Actions; pending: boolea
               <Info label="Version">{versionText(app)}</Info>
               <Info label="Intelligence artificielle">{app.ai ? <AiModel app={app} /> : 'Aucune'}</Info>
               <Info label="Hors ligne">{app.ai ? 'Non, a besoin du modèle' : 'Oui, entièrement'}</Info>
-              <Info label="S'ouvre dans">{app.kind === 'web' ? 'Votre navigateur' : 'Sa propre fenêtre'}</Info>
+              <Info label="S'ouvre dans">{inBrowser(app) ? 'Votre navigateur' : 'Sa propre fenêtre'}</Info>
               {team && <Info label="Installation">{app.mode === 'auto' ? "Installée pour toute l'équipe" : 'Installée à votre demande'}</Info>}
             </dl>
           </section>
@@ -437,8 +436,8 @@ export const AppPage: React.FC<{ app: DockApp; actions: Actions; pending: boolea
               <IconChevron className="rotate-90 transition-transform group-open:-rotate-90" />
             </summary>
             <dl className="m-0 mt-3 grid gap-x-4 gap-y-2 text-sm" style={{ gridTemplateColumns: 'auto minmax(0, 1fr)' }}>
-              <Info label="Type">{app.kind === 'web' ? 'App web locale' : 'App de bureau'}</Info>
-              {app.kind === 'web' && <Info label="Adresse" mono>{where(app)}</Info>}
+              <Info label="Type">{app.kind === 'web' ? 'App web locale' : app.kind === 'external' ? 'App web externe' : 'App de bureau'}</Info>
+              {inBrowser(app) && <Info label="Adresse" mono>{where(app)}</Info>}
               {team && <Info label="Sur le partage" mono>{app.availableVersion ?? '—'}</Info>}
               <Info label="Emplacement" mono>{app.location ?? 'non installée'}</Info>
             </dl>
@@ -453,7 +452,7 @@ export const AppPage: React.FC<{ app: DockApp; actions: Actions; pending: boolea
                 className="flex h-10 items-center rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body hover:bg-surface-3">
                 Signaler un problème
               </button>
-              {team && app.installed && app.mode !== 'auto' && app.kind === 'web' && (
+              {team && app.installed && app.mode !== 'auto' && inBrowser(app) && (
                 <button type="button" onClick={() => actions.uninstall(app)}
                   className="flex h-10 items-center rounded border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-body hover:bg-surface-3">
                   Retirer de ce poste

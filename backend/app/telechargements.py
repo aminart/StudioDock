@@ -144,7 +144,7 @@ class Telechargements:
 
     def programme_de(self, app: AppEntry) -> Trouvee | None:
         """Exe (app web) ou installateur (app native) d'une app, arrivé dans Téléchargements."""
-        if app.kind == "web":
+        if app.copiee:
             accepte = _est_programme
         else:
             accepte = lambda f: _est_installateur(f) or _est_programme(f)  # noqa: E731

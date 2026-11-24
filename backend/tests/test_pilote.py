@@ -216,3 +216,59 @@ def test_fermeture_de_la_fenetre_demande_si_des_apps_sont_ouvertes(client, maiso
 
     client.post("/api/apps/demo/stop")
     assert main.pilote.apps_ouvertes() == []
+
+
+def _deposer_externe(maison, nom="Snappy.py"):
+    import shutil
+    from pathlib import Path
+
+    dossier = maison / "apps" / "snappy"
+    dossier.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(Path(__file__).parent / "fausse_app_externe.py", dossier / nom)
+
+
+def test_app_web_externe_port_detecte(client, maison):
+    """Exe d'un tiers sans adresse connue : Studio Dock le lance tel quel, trouve son port, l'ouvre et l'arrête."""
+    from app import main
+
+    ecrire_catalogue(maison, [{"id": "snappy", "name": "Snappy Transcript", "kind": "external", "exe": "Snappy"}])
+    app = client.get("/api/apps").json()["apps"][0]
+    assert app["state"] == "missing" and app["port"] is None
+
+    _deposer_externe(maison)
+    assert client.post("/api/apps/snappy/launch").status_code == 200
+    app = _attendre(client, "snappy", {"on"})
+    assert app["url"].startswith("http://localhost:") and not app["external"]
+    assert main.pilote.apps_ouvertes() == ["snappy"]  # s'arrête avec Studio Dock
+
+    assert client.post("/api/apps/snappy/open").json()["ok"]
+    assert client.ouverts == [app["url"]]
+
+    assert client.post("/api/apps/snappy/stop").json()["state"] == "off"
+    assert main.pilote.apps_ouvertes() == []
+
+
+def test_app_web_externe_adresse_fixe(client, maison, monkeypatch):
+    port = port_libre()
+    monkeypatch.setenv("FAUSSE_PORT", str(port))
+    ecrire_catalogue(maison, [{"id": "snappy", "name": "Snappy Transcript", "kind": "external", "exe": "Snappy",
+                               "address": f"localhost:{port}"}])
+    app = client.get("/api/apps").json()["apps"][0]
+    assert app["port"] == port and app["url"] == f"http://localhost:{port}"
+
+    _deposer_externe(maison)
+    client.post("/api/apps/snappy/launch")
+    assert _attendre(client, "snappy", {"on"})["url"] == f"http://localhost:{port}"
+    client.post("/api/apps/snappy/stop")
+
+
+def test_adresse_d_une_app_externe_sur_ce_poste_seulement():
+    import pytest
+    from pydantic import ValidationError
+
+    from app.catalogue import AppEntry
+
+    for adresse in ("http://exemple.fr:5000", "http://localhost", "pas une adresse:xx"):
+        with pytest.raises(ValidationError):
+            AppEntry(id="x", name="X", kind="external", exe="X", address=adresse)
+    assert AppEntry(id="x", name="X", kind="external", exe="X", address=" ").address is None

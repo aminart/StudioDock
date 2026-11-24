@@ -4,10 +4,12 @@ export type AppState = 'missing' | 'off' | 'starting' | 'on' | 'error';
 export interface DockApp {
   id: string;
   name: string;
-  kind: 'web' | 'native';
+  kind: 'web' | 'native' | 'external';
   port: number | null;
   ai: boolean;
   exe: string;
+  /** App web externe : adresse fixe (http://localhost:5000) ; vide = port détecté au lancement. */
+  address?: string | null;
   tagline: string;
   description: string;
   points: string[];
@@ -187,10 +189,11 @@ export interface OllamaState {
 export interface CatalogueApp {
   id: string;
   name: string;
-  kind: 'web' | 'native';
+  kind: 'web' | 'native' | 'external';
   port: number | null;
   ai: boolean;
   exe: string;
+  address?: string | null;
   source: string;
   mode: 'auto' | 'optionnel' | 'masque';
   install_name?: string | null;

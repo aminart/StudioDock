@@ -31,7 +31,7 @@ const Label: React.FC<{ htmlFor?: string; children: React.ReactNode; optional?: 
     {children}{optional && <span className="ml-1.5 font-normal text-ink-subtle">facultatif</span>}
   </label>
 );
-const Hint: React.FC<{ children: React.ReactNode }> = ({ children }) => <span className="text-[13px] text-ink-muted">{children}</span>;
+const Hint: React.FC<{ children: React.ReactNode; id?: string }> = ({ children, id }) => <span id={id} className="text-[13px] text-ink-muted">{children}</span>;
 
 /** Vignette de l'icône, comme sur les cartes : « logo » remplit la vignette, « symbole » est posé sur fond navy. */
 const Tile: React.FC<{ src: string | null; style: 'logo' | 'symbole'; size?: number }> = ({ src, style, size = 48 }) => (
@@ -128,6 +128,7 @@ const AppForm: React.FC<{
           <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
             <legend className="mb-1.5 text-sm font-medium text-ink">Type</legend>
             {([['web', 'S\'ouvre dans le navigateur', 'Comme SpecGen : un exe que Studio Dock copie et lance.'],
+               ['external', 'App web d\'un tiers', 'Un exe fait ailleurs qui s\'ouvre sur localhost : Studio Dock le copie, le lance et l\'arrête avec lui.'],
                ['native', 'App de bureau', 'Comme Mapline : un installateur (.exe ou .msi) lancé par Studio Dock.']] as const).map(([value, label, hint]) => (
               <label key={value} className="flex cursor-pointer items-start gap-2.5 rounded border border-line px-3 py-2 hover:bg-surface-2">
                 <input type="radio" name="ed-kind" className="mt-0.5" checked={app.kind === value} onChange={() => set('kind', value)} />
@@ -184,6 +185,12 @@ const AppForm: React.FC<{
                   <input id="ed-port" type="number" min={1024} max={65535} className={`${field} ${portTaken ? 'border-danger' : ''}`} value={app.port ?? ''}
                     onChange={(e) => set('port', e.target.value ? Number(e.target.value) : null)} placeholder="choisi automatiquement" />
                   <Hint>{portTaken ? 'Déjà utilisé par une autre app.' : 'Laissez vide : un port libre est choisi.'}</Hint>
+                </div>
+              ) : app.kind === 'external' ? (
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="ed-address" optional>Adresse</Label>
+                  <input id="ed-address" className={`${field} font-mono`} value={app.address ?? ''} onChange={(e) => set('address', e.target.value || null)} aria-describedby="ed-address-aide" />
+                  <Hint id="ed-address-aide">Celle qui s'ouvre dans le navigateur, par exemple <span className="font-mono">localhost:5000</span>. Vide : Studio Dock la trouve au lancement.</Hint>
                 </div>
               ) : (
                 <div className="flex flex-col gap-1.5">
@@ -288,7 +295,7 @@ export const CatalogueApps: React.FC<{ state: CatalogueEdit; onChanged: (s: Cata
             <div className="flex min-w-[220px] flex-1 flex-col">
               <span className="flex flex-wrap items-center gap-2">
                 <span className="font-medium text-ink">{a.name}</span>
-                <span className="rounded-full border border-line px-2 py-px text-[12px] text-ink-muted">{a.kind === 'native' ? 'App de bureau' : 'Navigateur'}</span>
+                <span className="rounded-full border border-line px-2 py-px text-[12px] text-ink-muted">{a.kind === 'native' ? 'App de bureau' : a.kind === 'external' ? 'Navigateur · tiers' : 'Navigateur'}</span>
                 {a.ai && <span className="rounded-full border border-line px-2 py-px text-[12px] text-ink-muted">IA</span>}
                 <span className={`rounded-full px-2 py-px text-[12px] ${a.mode === 'masque' ? 'bg-surface-3 text-ink-subtle' : a.mode === 'auto' ? 'bg-accent-soft text-accent-ink' : 'border border-line text-ink-muted'}`}>{modeLabel(a.mode)}</span>
               </span>

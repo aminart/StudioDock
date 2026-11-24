@@ -4,6 +4,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+## [0.7.0] — 2026-11-24
+
+### Ajouté
+
+- Nouveau type d'app « App web d'un tiers » (`external`) : un .exe fait ailleurs qui s'ouvre dans le navigateur sur
+  localhost, sans le contrat commun.
+  - Studio Dock le copie comme une app web et le lance tel quel. Il l'arrête avec le bouton « Arrêter » et quand on
+    ferme Studio Dock, après confirmation comme les autres.
+  - « Prête » dès que l'app répond. « Ouvrir » ouvre le navigateur sur son adresse.
+  - Adresse facultative dans le formulaire du catalogue : vide, Studio Dock trouve tout seul le port de l'app au
+    lancement. Une adresse fixe permet de vérifier que le port est libre et de reconnaître l'app lancée à côté.
+
 ## [0.6.2] — 2026-11-21
 
 ### Modifié

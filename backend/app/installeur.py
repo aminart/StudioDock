@@ -98,7 +98,7 @@ class Installeur:
     def _travail(self, app: AppEntry, source: Path, suivi: Copie, nom: str | None = None,
                  apres: Callable[[], None] | None = None, origine: str = "le dossier partagé") -> None:
         try:
-            if app.kind == "web":
+            if app.copiee:
                 self._installer_web(app, source, suivi, nom)
             else:
                 self._installer_native(app, source, suivi, nom)
@@ -136,7 +136,7 @@ class Installeur:
             winapi.lancer_detache([str(cible)], cwd=cible.parent)
 
     def retirer(self, app: AppEntry) -> None:
-        if app.kind != "web":
+        if not app.copiee:
             raise ValueError(f"{app.name} se désinstalle depuis les réglages du système.")
         if self.pilote.est_lancee(app):
             self.pilote.arreter(app)
@@ -146,7 +146,7 @@ class Installeur:
         """Apps « auto » du catalogue : installées d'office dès que le partage est accessible, et mises à jour
         d'office quand elles ne sont pas lancées (sinon le bandeau « Mettre à jour » s'affiche)."""
         for app in apps:
-            if app.mode != "auto" or app.kind != "web" or self.copies.get(app.id):
+            if app.mode != "auto" or not app.copiee or self.copies.get(app.id):
                 continue
             disponible = trouver_dans_partage(app, partage)
             if disponible is None:
@@ -162,5 +162,5 @@ class Installeur:
 
 
 def installee(app: AppEntry) -> tuple[bool, str | None]:
-    trouvee = trouver_web(app) if app.kind == "web" else trouver_native(app)
+    trouvee = trouver_web(app) if app.copiee else trouver_native(app)
     return trouvee is not None, trouvee.version if trouvee else None

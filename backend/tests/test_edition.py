@@ -70,3 +70,28 @@ def test_dossier_partage_signale(client, tmp_path):
     client.put("/api/settings", json={"shared_folder": str(dossier)})
     r = client.post("/api/admin/catalogue/create", json={"folder": str(dossier)}).json()
     assert r["isShared"] is True
+
+
+def test_app_web_externe_dans_le_catalogue(client, tmp_path):
+    dossier = tmp_path / "Q"
+    dossier.mkdir()
+    client.post("/api/admin/catalogue/create", json={"folder": str(dossier)})
+
+    # Sans adresse : port vide, détecté au lancement
+    r = client.put("/api/admin/catalogue/apps", json={"folder": str(dossier), "app": {
+        "name": "Snappy Transcript", "kind": "external", "address": " "}})
+    assert r.status_code == 200, r.text
+    app = next(a for a in r.json()["apps"] if a["id"] == "snappy-transcript")
+    assert (app["exe"], app["port"], app.get("address")) == ("SnappyTranscript", None, None)
+
+    # Adresse fixe : gardée, son port compte pour les doublons
+    r = client.put("/api/admin/catalogue/apps", json={"folder": str(dossier), "app": {
+        **app, "address": "localhost:5000"}, "id": "snappy-transcript"})
+    assert r.status_code == 200, r.text
+    app = next(a for a in r.json()["apps"] if a["id"] == "snappy-transcript")
+    assert app["address"] == "http://localhost:5000"
+
+    # Adresse hors de ce poste : refusée avec un message clair
+    r = client.put("/api/admin/catalogue/apps", json={"folder": str(dossier), "app": {
+        **app, "address": "http://serveur.fr:5000"}, "id": "snappy-transcript"})
+    assert r.status_code == 422 and "sur ce poste" in r.text
