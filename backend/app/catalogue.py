@@ -19,6 +19,7 @@ import json
 import shutil
 import threading
 from pathlib import Path
+from urllib.parse import urlsplit
 from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
@@ -51,7 +52,9 @@ class Lien(BaseModel):
 class AppEntry(BaseModel):
     id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,39}$")
     name: str = Field(min_length=1, max_length=60)
-    kind: Literal["web", "native"] = "web"
+    # web : app de la suite (contrat --port / /health) ; native : app de bureau qui vit sa vie ;
+    # external : app web d'un tiers (exe qui s'ouvre sur localhost, sans le contrat), adresse fixe ou détectée
+    kind: Literal["web", "native", "external"] = "web"
     port: int | None = Field(default=None, ge=1024, le=65535)
     ai: bool = False
     exe: str = Field(min_length=1)  # nom du programme sans extension ni version, ex. « SpecGenerator »
@@ -59,6 +62,7 @@ class AppEntry(BaseModel):
     mode: Literal["auto", "optionnel", "masque"] = "optionnel"  # catalogue d'équipe
     path: str | None = None  # emplacement imposé (fichier ou dossier), relatif au dossier de Studio Dock
     install_name: str | None = None  # app native : nom dans « Applications installées » de Windows
+    address: str | None = None  # app web externe : adresse fixe (http://localhost:5000) ; vide = port détecté
     tagline: str = ""
     description: str = ""
     points: list[str] = Field(default_factory=list)
@@ -82,11 +86,36 @@ class AppEntry(BaseModel):
             raise ValueError("« source » est un sous-dossier du dossier partagé (chemin relatif)")
         return valeur
 
+    @field_validator("address")
+    @classmethod
+    def _adresse_locale(cls, valeur: str | None) -> str | None:
+        valeur = (valeur or "").strip()
+        if not valeur:
+            return None
+        if "://" not in valeur:
+            valeur = "http://" + valeur
+        try:
+            adresse = urlsplit(valeur)
+            port = adresse.port
+        except ValueError:
+            raise ValueError("adresse illisible : par exemple http://localhost:5000") from None
+        if adresse.scheme not in ("http", "https") or adresse.hostname not in ("localhost", "127.0.0.1") or not port:
+            raise ValueError("l'adresse doit être sur ce poste, avec son port : par exemple http://localhost:5000")
+        return valeur
+
     @model_validator(mode="after")
     def _port_si_web(self) -> "AppEntry":
         if self.kind == "web" and self.port is None:
             raise ValueError(f"{self.id} : une app web doit avoir un port")
+        if self.kind == "external":
+            # Le port de l'adresse, s'il est connu (sert aussi au contrôle des ports en double)
+            self.port = urlsplit(self.address).port if self.address else None
         return self
+
+    @property
+    def copiee(self) -> bool:
+        """Programme copié dans le dossier de l'app (app web de la suite ou app web externe), pas installé."""
+        return self.kind in ("web", "external")
 
 
 class DockConf(BaseModel):

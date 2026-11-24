@@ -201,7 +201,13 @@ export const shortPath = (path: string | null | undefined): string => {
   return parts.length <= 3 ? path : `…${sep}${parts.slice(-2).join(sep)}`;
 };
 
-export const where = (app: DockApp) => (app.kind === 'web' ? `localhost:${app.port}` : 'Application de bureau');
+/** S'ouvre dans le navigateur : app web de la suite ou app web externe (exe d'un tiers sur localhost). */
+export const inBrowser = (app: DockApp) => app.kind !== 'native';
+
+export const where = (app: DockApp) =>
+  app.kind === 'web' ? `localhost:${app.port}`
+    : app.kind === 'external' ? (app.url ?? app.address ?? 'détectée au lancement').replace(/^https?:\/\//, '').replace(/\/$/, '')
+      : 'Application de bureau';
 
 export const StatusLine: React.FC<{ app: DockApp }> = ({ app }) => (
   <div className="flex min-w-0 items-center gap-2 text-[13px]">
@@ -298,7 +304,7 @@ export const AppNotice: React.FC<{ app: DockApp; actions: Actions; compact?: boo
       </div>
     );
   }
-  if (app.state === 'missing' && app.kind === 'web' && !team) {
+  if (app.state === 'missing' && inBrowser(app) && !team) {
     return (
       <div className="flex items-start gap-2 rounded-md border border-line bg-surface-2 px-3 py-2 text-[13px] text-ink-muted">
         <IconFolder className="mt-0.5 shrink-0" />
@@ -348,7 +354,7 @@ export const AppActions: React.FC<{ app: DockApp; actions: Actions; pending: boo
       </button>
     );
   }
-  if (app.state === 'on' && app.kind === 'web') {
+  if (app.state === 'on' && inBrowser(app)) {
     return (
       <div className={`flex gap-2 ${wide ? '' : 'min-w-0 flex-1'}`}>
         <button type="button" onClick={() => actions.open(app)} className={btnInk} aria-label={`Ouvrir ${app.name} dans le navigateur`}>

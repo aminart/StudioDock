@@ -151,7 +151,14 @@ def enregistrer(dossier: Path, valeurs: dict[str, Any], ancien_id: str | None) -
             if not app.get("port"):
                 app["port"] = port_libre({a.get("port") for a in autres if a.get("port")})
             app.pop("install_name", None)
+            app.pop("address", None)
+        elif app.get("kind") == "external":
+            # Port fixé par l'adresse (validation du catalogue), ou détecté au lancement si l'adresse est vide
+            app["address"] = str(app.get("address") or "").strip() or None
+            app["port"] = None
+            app.pop("install_name", None)
         else:
+            app.pop("address", None)
             app["port"] = None
             app["install_name"] = str(app.get("install_name") or "").strip() or None
         # Listes nettoyées : lignes vides retirées

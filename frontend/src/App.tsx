@@ -91,7 +91,7 @@ export const App: React.FC = () => {
   React.useEffect(() => {
     const w = window as unknown as { __studioDockFermeture?: () => boolean };
     w.__studioDockFermeture = () => {
-      const open = (latest.current?.apps ?? []).filter((a) => a.kind === 'web' && a.state === 'on' && !a.external);
+      const open = (latest.current?.apps ?? []).filter((a) => a.kind !== 'native' && a.state === 'on' && !a.external);
       const names = open.map((a) => a.name);
       const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} et ${names[names.length - 1]}` : names[0] ?? 'Des apps';
       ask({

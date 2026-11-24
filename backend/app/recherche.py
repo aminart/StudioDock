@@ -154,7 +154,7 @@ def trouver_dans_partage(app: AppEntry, partage: Path | None, nom: str | None = 
             base = _nom_sans_extension(f) if f.suffix.lower() in (".exe", ".py") else f.stem
             if not base.lower().startswith(prefixe) or (len(base) > len(prefixe) and base[len(prefixe)].isalpha()):
                 continue
-            if (app.kind == "native" and _est_installateur(f)) or (app.kind == "web" and _est_programme(f)):
+            if (app.kind == "native" and _est_installateur(f)) or (app.copiee and _est_programme(f)):
                 fichiers.append(f)
         return _plus_recent(fichiers)
     except OSError:

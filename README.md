@@ -191,7 +191,8 @@ version valide reste affichée, avec l'erreur.
 | Champ | Rôle |
 |---|---|
 | `id` | Identifiant ; pour une app web, celui que renvoie son `/health` (`specgen`, `audit-ergo`, `docanalyser`). Nom du dossier `apps\<id>\`. |
-| `kind` | `web` (contrat commun) ou `native` (app de bureau). |
+| `kind` | `web` (contrat commun), `native` (app de bureau) ou `external` (app web d'un tiers : un exe qui s'ouvre sur localhost sans le contrat commun). |
+| `address` | *(external, facultatif)* Adresse fixe de l'app, par exemple `http://localhost:5000`. Vide : Studio Dock trouve le port qu'écoute son processus au lancement. |
 | `port` | App web : son port réservé (8010 SpecGen, 8501 AuditErgo, 8020 DocAnalyser). |
 | `exe` | Nom de l'exe sans `.exe` ni version (`SpecGenerator`). |
 | `path` | *(facultatif)* Emplacement imposé, fichier ou dossier, relatif au dossier de Studio Dock. |
@@ -199,6 +200,18 @@ version valide reste affichée, avec l'erreur.
 | `ai` | L'app utilise des modèles d'IA : elle reçoit un modèle dans Réglages › Modèles d'IA. |
 | `icon` | Fichier relatif au dossier de Studio Dock (sinon icône livrée) ; `style` : `logo` (l'image remplit la vignette avec son propre fond, cas des icônes de la suite) ou `symbole` (pictogramme posé sur un fond Night Navy). Carré, SVG ou PNG ≥ 256 px. |
 | `tagline`, `description`, `points`, `tutorial`, `links` | Carte de l'accueil et fiche de l'app. |
+
+### App web d'un tiers (`external`)
+
+Pour un exe fait ailleurs qui s'ouvre dans le navigateur sur `localhost`, sans `--port` ni `/health` :
+
+- il est copié dans `apps\<id>\` comme une app web, puis lancé tel quel (il ouvre souvent lui-même le navigateur) ;
+- il s'arrête avec Studio Dock, et avec le bouton « Arrêter » de sa carte ;
+- « Prête » dès que son adresse répond ; « Ouvrir » ouvre le navigateur sur cette adresse ;
+- sans `address`, le port est détecté sur son processus au lancement. Une adresse fixe permet en plus de reconnaître
+  l'app lancée hors de Studio Dock et de vérifier que son port est libre avant de la lancer.
+
+Studio Dock ne peut pas savoir si elle est « occupée » (pas de `/health`). Pour aller plus loin, rendez-la compatible :
 
 ### Rendre une app web compatible
 
