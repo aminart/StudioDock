@@ -126,9 +126,22 @@ class DockConf(BaseModel):
     sha256: str | None = None
 
 
+class Transcription(BaseModel):
+    """Modèle de transcription de l'équipe (faster-whisper), distribué comme une app : une archive .zip déposée dans
+    le sous-dossier « source » du partage, installée d'office chez chacun (voir modeles.py)."""
+    name: str = Field(default="Modèle de transcription", min_length=1, max_length=60)
+    source: str = Field(default="Modeles", min_length=1)
+    file: str | None = None  # catalogue en ligne : début du nom de l'archive (repérée dans Téléchargements)
+    version: str | None = None  # catalogue en ligne : version publiée
+    link: str | None = None  # catalogue en ligne : lien du dossier en ligne
+    size: int | None = None
+    sha256: str | None = None
+
+
 class Catalogue(BaseModel):
     apps: list[AppEntry] = Field(default_factory=list)
     studiodock: DockConf = Field(default_factory=DockConf)
+    transcription: Transcription | None = None
     link: str | None = None  # catalogue en ligne : lien du fichier studio-dock-catalogue.zip (ou de son dossier)
     published: str | None = None  # catalogue en ligne : date de fabrication du zip (AAAA-MM-JJ HH:MM)
 

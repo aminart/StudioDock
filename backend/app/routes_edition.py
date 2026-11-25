@@ -5,6 +5,7 @@ POST   /api/admin/catalogue/create        {folder}                créer le cata
 PUT    /api/admin/catalogue/apps          {folder, id?, app}      ajouter (sans id) ou modifier une app
 POST   /api/admin/catalogue/apps/delete   {folder, id}            retirer une app du catalogue
 POST   /api/admin/catalogue/apps/move     {folder, id, direction} monter (-1) ou descendre (+1)
+PUT    /api/admin/catalogue/transcription {folder, transcription} déclarer (ou retirer : null) le modèle de transcription
 POST   /api/admin/catalogue/icon          {folder, id, name, data} importer une icône (base64), renvoie son chemin
 GET    /api/admin/catalogue/icon?folder=&file=                    afficher une icône du dossier
 """
@@ -38,6 +39,10 @@ class Cible(Dossier):
 
 class Deplacement(Cible):
     direction: int
+
+
+class ModeleTranscription(Dossier):
+    transcription: dict[str, Any] | None = None  # {name, source} ; None : retirer le modèle du catalogue
 
 
 class Icone(Cible):
@@ -98,6 +103,11 @@ async def supprimer(corps: Cible):
 @router.post("/apps/move")
 async def deplacer(corps: Deplacement):
     return await _executer(_dossier(corps.folder), edition.deplacer, corps.id, 1 if corps.direction > 0 else -1)
+
+
+@router.put("/transcription")
+async def transcription(corps: ModeleTranscription):
+    return await _executer(_dossier(corps.folder), edition.enregistrer_transcription, corps.transcription)
 
 
 @router.post("/icon")

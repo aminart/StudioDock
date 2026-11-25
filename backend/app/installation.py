@@ -23,7 +23,7 @@ from app.info import EMPAQUETE, dossier_installation_choisi, exe_dir
 
 EXE = "StudioDock.exe"
 # Ce que Studio Dock range dans son dossier d'installation : seul ceci est déplacé puis effacé
-CONTENU = ["apps", "installateurs", "cache", "catalogue.cache.json", "apps.json", "studiodock.config.json"]
+CONTENU = ["apps", "modeles", "installateurs", "cache", "catalogue.cache.json", "apps.json", "studiodock.config.json"]
 EXES = [EXE, "StudioDock.old.exe", "StudioDock.new.exe"]
 RACCOURCI = "Studio Dock.lnk"
 

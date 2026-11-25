@@ -1,4 +1,5 @@
 import React from 'react';
+import { TranscriptionSection } from './transcription';
 import { ActionError, api, iaApi, toBase64 } from './api';
 import type { AiApp, AiChoice, AiConnection, AiState, ConnectionForm, ConnectionTest, OllamaState } from './types';
 import { IconAlert, IconBack, IconDownload, IconExternal, IconRefresh, IconSpinner, PlatformContext, SectionTitle, SettingsTabs, shortPath } from './ui';
@@ -599,6 +600,8 @@ export const AiPage: React.FC = () => {
             subtitle="Ajoutez un service ou des modèles Ollama ci-dessus : vous choisirez ensuite le modèle de chaque app ici." />
         </section>
       )}
+
+      <TranscriptionSection n={4} />
 
       {state && <p className="m-0 text-[13px] text-ink-subtle">Enregistré sur ce poste, dans <span className="font-mono" title={state.folder}>{shortPath(state.folder)}</span></p>}
     </div>
