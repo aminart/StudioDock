@@ -4,6 +4,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+### Ajouté
+
+- Modèle de transcription de l'équipe : déclaré dans Préparer pour l'équipe (section `transcription` du catalogue),
+  déposé en .zip dans le dossier partagé, installé d'office chez chacun (ou téléchargé par le navigateur avec un
+  catalogue en ligne, puis vérifié). Visible dans Réglages › Modèles d'IA › Transcription audio. Les apps le lisent
+  avec `studiodock_ia.transcription()` (contrat mis à jour) : Snappy Transcript n'a plus de chemin à régler.
+
 ## [0.7.0] — 2026-11-24
 
 ### Ajouté

@@ -1,4 +1,4 @@
-import type { AiChoice, CatalogueApp, CatalogueEdit, AiState, ConnectionForm, ConnectionTest, DockApp, DockState, OllamaState, PrepareState, Settings } from './types';
+import type { AiChoice, CatalogueApp, CatalogueEdit, CatalogueTranscription, TranscriptionState, AiState, ConnectionForm, ConnectionTest, DockApp, DockState, OllamaState, PrepareState, Settings } from './types';
 
 export class ActionError extends Error {}
 
@@ -42,7 +42,7 @@ export const api = {
   checkCatalogue: () => call<{ ok: boolean }>('POST', '/api/catalogue/check'),
   cancelCatalogue: () => call<{ ok: boolean }>('POST', '/api/catalogue/cancel'),
   prepare: (folder: string) => call<PrepareState>('POST', '/api/admin/catalogue', { folder }),
-  build: (body: { folder: string; links: Record<string, string>; studiodockLink: string; catalogueLink: string }) =>
+  build: (body: { folder: string; links: Record<string, string>; studiodockLink: string; catalogueLink: string; transcriptionLink: string }) =>
     call<PrepareState>('POST', '/api/admin/catalogue/build', body),
   showPrepare: (folder: string) => call<{ ok: boolean }>('POST', '/api/admin/catalogue/show', { folder }),
   installDock: (folder: string) => call<{ ok: boolean; restarting: boolean; folder: string; shortcut: boolean }>('PUT', '/api/settings/install', { folder }),
@@ -60,6 +60,8 @@ export const catalogueApi = {
   remove: (folder: string, id: string) => call<CatalogueEdit>('POST', '/api/admin/catalogue/apps/delete', { folder, id }),
   move: (folder: string, id: string, direction: number) =>
     call<CatalogueEdit>('POST', '/api/admin/catalogue/apps/move', { folder, id, direction }),
+  saveTranscription: (folder: string, transcription: Pick<CatalogueTranscription, 'name' | 'source'> | null) =>
+    call<CatalogueEdit>('PUT', '/api/admin/catalogue/transcription', { folder, transcription }),
   uploadIcon: (folder: string, id: string, name: string, data: string) =>
     call<{ file: string }>('POST', '/api/admin/catalogue/icon', { folder, id, name, data }),
 };
@@ -79,6 +81,13 @@ export const iaApi = {
   pull: (model: string, address: string) => call<OllamaState>('POST', '/api/ia/ollama/pull', { model, address }),
   offerOllama: (address: string, models: string[], context_tokens: number | null) =>
     call<AiState & { ollama: OllamaState }>('PUT', '/api/ia/ollama', { address, models, context_tokens }),
+};
+
+/** Modèle de transcription de l'équipe, installé sur ce poste par Studio Dock. */
+export const transcriptionApi = {
+  state: () => call<TranscriptionState>('GET', '/api/transcription'),
+  install: () => call<TranscriptionState>('POST', '/api/transcription/install'),
+  cancel: () => call<TranscriptionState>('POST', '/api/transcription/cancel-download'),
 };
 
 /** Contenu d'un fichier en base64 (certificat). */

@@ -257,6 +257,26 @@ Dans ces apps, on choisit au lancement un autre des modèles de Studio Dock (Doc
 SpecGen et AuditErgo : champ « Modèle d'IA », envoyé dans l'en-tête `X-StudioDock-Model`), et leurs Réglages
 fixent le modèle par défaut parmi ceux de Studio Dock.
 
+### Modèle de transcription de l'équipe
+
+Un modèle de transcription (faster-whisper, quelques centaines de Mo) est distribué comme une app : déposé une fois
+par l'administratrice, installé chez chacun, sans aucun chemin à régler. Snappy Transcript l'utilise d'office.
+
+1. Réglages › Préparer pour l'équipe › **Modèle de transcription** › « + Proposer un modèle » : nom affiché et
+   sous-dossier (défaut `Modeles`). Le catalogue reçoit une section `transcription`.
+2. Déposer dans ce sous-dossier le modèle compressé en .zip : le dossier qui contient `config.json` et `model.bin`
+   (ou ces fichiers à la racine du zip), par exemple `faster-whisper-small-1.0.0.zip`.
+3. Chez chacun, Studio Dock l'installe d'office depuis le dossier partagé, dans `modeles\transcription\` du dossier
+   d'installation (déplacé avec lui), et le signale dans Réglages › Modèles d'IA › **Transcription audio**. Une archive
+   avec un numéro plus grand remplace la précédente. **Catalogue en ligne** : le modèle a sa ligne dans « Fabriquer le
+   catalogue » (lien, taille, empreinte) ; chacun clique sur « Télécharger », Studio Dock vérifie puis installe l'archive.
+
+Une archive sans `config.json` ni `model.bin`, ou avec des chemins sortant du dossier, est refusée (message dans
+Réglages, sans nouvelle tentative tant que l'archive n'a pas changé).
+
+**Côté app** : `studiodock_ia.transcription()` donne `name`, `version` et `path` (dossier local du modèle), ou `None`.
+Studio Dock l'écrit dans `ia/transcription.json` (format 1).
+
 ## Développement
 
 ```bash

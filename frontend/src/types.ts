@@ -103,6 +103,8 @@ export interface PrepareState {
   folder: string;
   apps: PrepareApp[];
   studiodock: { source: string; found: string | null; version: string | null; link: string };
+  /** Modèle de transcription de l'équipe, s'il est déclaré dans le catalogue. */
+  transcription: { name: string; source: string; found: string | null; version: string | null; link: string } | null;
   link: string;
   published: string | null;
   zip?: string;
@@ -209,11 +211,39 @@ export interface CatalogueApp {
   invalid?: string;
 }
 
+/** Modèle de transcription déclaré dans le catalogue (Préparer pour l'équipe). */
+export interface CatalogueTranscription {
+  name: string;
+  source: string;
+  sourceFound?: boolean;
+  found?: string | null;
+  version?: string | null;
+  invalid?: string;
+}
+
+/** Modèle de transcription sur ce poste (Réglages › Modèles d'IA). */
+export interface TranscriptionState {
+  offered: boolean;
+  name: string | null;
+  installed: boolean;
+  version: string | null;
+  path: string | null;
+  available: string | null;
+  update: boolean;
+  size: number | null;
+  online: boolean;
+  canDownload: boolean;
+  waiting: boolean;
+  progress: number | null;
+  error: string | null;
+}
+
 export interface CatalogueEdit {
   folder: string;
   exists: boolean;
   apps: CatalogueApp[];
   studiodock: { source: string };
+  transcription: CatalogueTranscription | null;
   /** Le dossier édité est le dossier partagé de l'équipe : les changements y sont visibles tout de suite. */
   isShared: boolean;
   saved?: string;

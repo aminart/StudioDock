@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app import installation, miseajour, reglages, routes_edition, routes_ia, telechargements, winapi
+from app import installation, miseajour, modeles, reglages, routes_edition, routes_ia, telechargements, winapi
 from app.catalogue import AppEntry, Catalogue, Source, fichier_icone, partage_accessible
 from app.info import (APP_ID, APP_NAME, EMPAQUETE, PLATEFORME, REPO_DIR, VERSION, dossier_installation_choisi, exe_dir,
                       home_dir, logs_dir, resources_dir)
@@ -156,6 +156,7 @@ def _recuperer_telechargements(catalogue: Catalogue) -> None:
             continue
         nom = telechargements.nom_de_base(fichier) + fichier.suffix
         installeur.installer_fichier(entree, fichier, nom, lambda f=fichier: telechargements.retirer(f))
+    _recuperer_modele(catalogue)
     if telech.en_attente("studiodock") and miseajour.remplacement_possible():
         trouvee = telech.studio_dock()
         if trouvee and miseajour.version_en_ligne(Catalogue(studiodock={"version": trouvee.version})):
@@ -165,6 +166,23 @@ def _recuperer_telechargements(catalogue: Catalogue) -> None:
                 telech.erreur_catalogue = probleme
                 return
             miseajour.appliquer(trouvee, pilote.tout_arreter, lambda f=trouvee.chemin: telechargements.retirer(f))
+
+
+def _recuperer_modele(catalogue: Catalogue) -> None:
+    """Modèle de transcription demandé : son archive arrivée dans Téléchargements est vérifiée puis installée."""
+    conf = catalogue.transcription
+    if conf is None or not telech.en_attente(modeles.CLE):
+        return
+    prefixe = conf.file or "faster-whisper"
+    fichiers = telech.fichiers(prefixe, lambda f: f.suffix.lower() == ".zip")
+    if not fichiers:
+        return
+    archive = max(fichiers, key=lambda f: f.stat().st_mtime)
+    telech.annuler(modeles.CLE)
+    if probleme := telechargements.conforme(archive, conf.size, conf.sha256):
+        modeles.signaler(probleme)
+        return
+    modeles.installer(archive, conf.name, conf.version, lambda a=archive: telechargements.retirer(a), "Téléchargements")
 
 
 def _etat_en_ligne(catalogue: Catalogue) -> dict[str, Any]:
@@ -189,6 +207,7 @@ async def lister() -> dict[str, Any]:
     a_installer = installation.a_installer()
     if partage is not None and not a_installer:
         await asyncio.to_thread(installeur.installer_les_apps_imposees, apps, partage)
+        await asyncio.to_thread(modeles.installer_si_besoin, catalogue.transcription, partage)
     etats = await pilote.etats(apps)
     if source.origine == "shared" and "seen" not in reglages.lire():
         # Premier catalogue d'équipe vu sur ce poste : rien n'est « nouveau », seules les apps ajoutées ensuite le seront
@@ -248,6 +267,42 @@ async def installer(app_id: str):
     return await _apres(entree)
 
 
+@app.get("/api/transcription")
+async def etat_transcription() -> dict[str, Any]:
+    """Modèle de transcription de l'équipe : proposé par le catalogue ? installé sur ce poste ? (Réglages › Modèles d'IA)"""
+    catalogue = source.lire()
+    await asyncio.to_thread(_recuperer_modele, catalogue)
+    return await asyncio.to_thread(modeles.etat, catalogue.transcription, _partage_lisible(), source.origine,
+                                   telech.en_attente(modeles.CLE))
+
+
+@app.post("/api/transcription/install")
+async def installer_transcription() -> dict[str, Any]:
+    """Installe le modèle maintenant (dossier partagé), ou ouvre son lien de téléchargement (catalogue en ligne)."""
+    catalogue = source.lire()
+    conf = catalogue.transcription
+    if conf is None:
+        raise HTTPException(409, "Le catalogue de l'équipe ne propose pas de modèle de transcription.")
+    if source.origine == "online":
+        if not conf.link:
+            raise HTTPException(409, "Le catalogue n'indique pas où télécharger le modèle de transcription.")
+        telech.attendre(modeles.CLE)
+        winapi.ouvrir(conf.link)
+    else:
+        archive = await asyncio.to_thread(modeles.dans_partage, conf, _partage_lisible())
+        if archive is None:
+            raise HTTPException(409, f"Aucune archive .zip dans le sous-dossier « {conf.source} » du dossier partagé.")
+        modeles.oublier_erreur()
+        modeles.installer(archive, conf.name, modeles.version_de(archive))
+    return await etat_transcription()
+
+
+@app.post("/api/transcription/cancel-download")
+async def annuler_transcription() -> dict[str, Any]:
+    telech.annuler(modeles.CLE)
+    return await etat_transcription()
+
+
 @app.post("/api/apps/{app_id}/cancel-download")
 async def annuler_telechargement(app_id: str):
     entree = _app_ou_404(app_id)
@@ -282,6 +337,7 @@ class Fabrication(BaseModel):
     links: dict[str, str] = {}
     studiodockLink: str = ""
     catalogueLink: str = ""
+    transcriptionLink: str = ""
 
 
 def _dossier_preparation(brut: str) -> Path:
@@ -294,7 +350,8 @@ def _dossier_preparation(brut: str) -> Path:
 def _public(etat: dict) -> dict:
     """Sans les chemins internes (clés « _ »)."""
     nettoyer = lambda d: {k: v for k, v in d.items() if not k.startswith("_")}  # noqa: E731
-    return {**etat, "apps": [nettoyer(a) for a in etat["apps"]], "studiodock": nettoyer(etat["studiodock"])}
+    return {**etat, "apps": [nettoyer(a) for a in etat["apps"]], "studiodock": nettoyer(etat["studiodock"]),
+            "transcription": nettoyer(etat["transcription"]) if etat.get("transcription") else None}
 
 
 @app.post("/api/admin/catalogue")
@@ -315,7 +372,7 @@ async def fabriquer_catalogue(corps: Fabrication):
     dossier = _dossier_preparation(corps.folder)
     try:
         archive = await asyncio.to_thread(telechargements.fabriquer, dossier, corps.links, corps.studiodockLink,
-                                          corps.catalogueLink)
+                                          corps.catalogueLink, corps.transcriptionLink)
         etat = await asyncio.to_thread(telechargements.preparer, dossier)
     except (OSError, ValueError) as e:
         raise HTTPException(409, f"Fabrication impossible : {e}") from e
