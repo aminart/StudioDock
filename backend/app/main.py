@@ -30,6 +30,8 @@ choisir_dossier: Callable[[], str | None] | None = None
 # Fenêtre (pywebview) : réduire, ou fermer pour de bon après confirmation ; None dans le navigateur
 reduire_fenetre: Callable[[], None] | None = None
 fermer_fenetre: Callable[[], None] | None = None
+# Ramener la fenêtre au premier plan quand on relance Studio Dock alors qu'il tourne déjà
+afficher_fenetre: Callable[[], None] | None = None
 
 _cache_partage: dict[str, tuple[float, Trouvee | None]] = {}
 
@@ -596,6 +598,15 @@ async def reduire():
     if reduire_fenetre is None:
         return _erreur(ErreurAction("no_window", "Pas de fenêtre à réduire."))
     await asyncio.to_thread(reduire_fenetre)
+    return {"ok": True}
+
+
+@app.post("/api/window/show")
+async def afficher():
+    """Studio Dock relancé alors qu'il tourne déjà : sa fenêtre revient au premier plan (pas de navigateur)."""
+    if afficher_fenetre is None:
+        return _erreur(ErreurAction("no_window", "Pas de fenêtre à afficher."))
+    await asyncio.to_thread(afficher_fenetre)
     return {"ok": True}
 
 

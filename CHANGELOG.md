@@ -4,6 +4,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+## [0.8.1] — 2026-11-26
+
+### Corrigé
+
+- Cliquer sur Studio Dock alors qu'il est déjà ouvert (par exemple réduit dans la barre des tâches) ramène sa
+  fenêtre au premier plan, au lieu d'ouvrir l'interface en plus dans le navigateur. Un double-clic pendant
+  l'ouverture n'ouvre plus le navigateur non plus.
+
 ## [0.8.0] — 2026-11-26
 
 ### Ajouté

@@ -82,3 +82,46 @@ def test_programmes_lances_sans_variables_de_pyinstaller(monkeypatch):
         assert "_MEIPASS2" not in env and "_PYI_APPLICATION_HOME_DIR" not in env
         assert env["PYINSTALLER_RESET_ENVIRONMENT"] == "1"
         assert env["CHEMIN_TEST"] == "gardé"
+
+
+def test_relance_ramene_la_fenetre_sans_navigateur(monkeypatch):
+    """Studio Dock déjà ouvert (même réduit) : un nouveau clic ramène sa fenêtre, le navigateur ne s'ouvre pas."""
+    import importlib.util
+
+    from app import winapi
+
+    spec = importlib.util.spec_from_file_location("lanceur_test", LANCEUR)
+    lanceur = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lanceur)
+    ouverts = []
+    monkeypatch.setattr(winapi, "ouvrir", ouverts.append)
+    monkeypatch.setattr(lanceur, "_deja_lance", lambda port: True)
+
+    monkeypatch.setattr(lanceur, "_ramener_la_fenetre", lambda port: True)
+    lanceur.main(["--port", "8099"])
+    assert ouverts == []
+
+    # Celui qui tourne n'a pas de fenêtre (lancé avec --browser, ou repli) : le navigateur prend le relais
+    monkeypatch.setattr(lanceur, "_ramener_la_fenetre", lambda port: False)
+    lanceur.main(["--port", "8099"])
+    assert ouverts == ["http://127.0.0.1:8099"]
+
+
+def test_ramener_la_fenetre_sans_fenetre(maison):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("lanceur_test2", LANCEUR)
+    lanceur = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lanceur)
+    port = port_libre()
+    assert lanceur._ramener_la_fenetre(port) is False  # rien ne tourne
+    process = subprocess.Popen([sys.executable, str(LANCEUR), "--no-window", "--port", str(port), "--home", str(maison)])
+    try:
+        for _ in range(100):
+            if lanceur._deja_lance(port):
+                break
+            time.sleep(0.2)
+        assert lanceur._ramener_la_fenetre(port) is False  # serveur seul : 409, donc le navigateur
+    finally:
+        process.terminate()
+        process.wait(timeout=10)
