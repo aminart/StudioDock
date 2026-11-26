@@ -4,6 +4,19 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+## [0.8.2] — 2026-11-26
+
+### Corrigé
+
+- Le tutoriel d'accueil s'affiche bien à la première installation, même quand l'équipe impose des apps : Studio
+  Dock les installait d'office dès qu'il voyait le dossier de l'équipe, et le tutoriel, réservé aux postes sans app,
+  n'apparaissait jamais. Seules les apps choisies par la personne, ou une connexion d'IA déjà enregistrée, indiquent
+  désormais un poste déjà en service.
+- Fin du tutoriel : une app cochée qui ne peut pas s'installer est signalée sur « C'est prêt », avec la raison,
+  au lieu d'être ignorée sans rien dire (il fallait la réinstaller depuis sa carte sans savoir pourquoi). Le
+  tutoriel reste affiché jusqu'à ce qu'on le quitte, même quand une app s'installe entre-temps.
+- Chaque installation d'app, lancée, refusée ou en échec, est notée dans studiodock.log (« Signaler un problème »).
+
 ## [0.8.1] — 2026-11-26
 
 ### Corrigé

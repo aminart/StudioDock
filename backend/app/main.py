@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app import installation, miseajour, modeles, reglages, routes_edition, routes_ia, telechargements, winapi
+from app import ia, installation, journal, miseajour, modeles, reglages, routes_edition, routes_ia, telechargements, winapi
 from app.catalogue import AppEntry, Catalogue, Source, fichier_icone, partage_accessible
 from app.info import (APP_ID, APP_NAME, EMPAQUETE, PLATEFORME, REPO_DIR, VERSION, dossier_installation_choisi, exe_dir,
                       home_dir, logs_dir, resources_dir)
@@ -220,6 +220,7 @@ async def lister() -> dict[str, Any]:
     version_dock = nouvelle.version if nouvelle else (
         miseajour.version_en_ligne(catalogue) if source.origine == "online" else None)
     cartes = await asyncio.to_thread(lambda: [_carte(a, etats[a.id], vues) for a in apps])
+    imposees = {a.id for a in apps if a.mode == "auto" and source.origine != "local"}
     return {
         "version": VERSION,
         "platform": PLATEFORME,
@@ -235,10 +236,22 @@ async def lister() -> dict[str, Any]:
         "canChooseFolder": choisir_dossier is not None,
         "needsInstall": a_installer,
         "catalogueAdmin": reglages.gere_le_catalogue(),
-        # Première connexion : tutoriel d'accueil, tant qu'il n'a pas été vu ni aucune app installée
-        "welcome": not reglages.lire().get("welcome_done") and not any(c["installed"] and c["state"] != "missing" for c in cartes),
+        # Première connexion : tutoriel d'accueil, tant qu'il n'a pas été vu ni aucune app installée par la personne.
+        # Les apps imposées à l'équipe (mode « auto ») ne comptent pas : Studio Dock les installe d'office dès qu'il
+        # voit le dossier partagé, avant même le premier affichage
+        "welcome": not reglages.lire().get("welcome_done") and not any(
+            c["installed"] and c["state"] != "missing" and c["id"] not in imposees for c in cartes)
+        and not _ia_deja_reglee(),
         "apps": cartes,
     }
+
+
+def _ia_deja_reglee() -> bool:
+    """Poste déjà configuré (connexion d'IA enregistrée) : pas de tutoriel, même s'il n'a jamais été marqué vu."""
+    try:
+        return bool(ia.lire()[0])
+    except Exception:  # noqa: BLE001 : fichier illisible, le tutoriel aidera à le refaire
+        return False
 
 
 async def _apres(entree: AppEntry) -> dict[str, Any]:
@@ -251,6 +264,7 @@ async def installer(app_id: str):
     """Installe ou met à jour l'app depuis le dossier partagé (copie en arrière-plan, progression dans la liste)."""
     entree = _app_ou_404(app_id)
     if installation.a_installer():
+        journal.noter(f"Installation de {entree.name} refusée : Studio Dock n'est pas encore dans son dossier.")
         return JSONResponse(status_code=409, content={
             "detail": "Installez d'abord Studio Dock dans votre dossier (Réglages).", "code": "not_installed"})
     if source.origine == "online":
@@ -264,9 +278,12 @@ async def installer(app_id: str):
     try:
         await asyncio.to_thread(installeur.installer, entree, _partage_lisible())
     except FileNotFoundError as e:
+        journal.noter(f"Installation de {entree.name} impossible : {e}")
         return JSONResponse(status_code=409, content={"detail": str(e), "code": "unavailable"})
     except ErreurAction as e:
+        journal.noter(f"Installation de {entree.name} impossible : {e}")
         return _erreur(e)
+    journal.noter(f"Installation de {entree.name} lancée.")
     return await _apres(entree)
 
 
