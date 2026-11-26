@@ -199,6 +199,7 @@ def test_fermeture_de_la_fenetre_demande_si_des_apps_sont_ouvertes(client, maiso
     # Sans fenêtre (navigateur, tests) : rien à réduire ni à fermer
     assert client.post("/api/window/minimize").status_code == 409
     assert client.post("/api/window/close").status_code == 409
+    assert client.post("/api/window/show").status_code == 409
 
     _catalogue(maison, port_libre())
     deposer(maison, "demo", "Demo.py")
@@ -213,6 +214,9 @@ def test_fermeture_de_la_fenetre_demande_si_des_apps_sont_ouvertes(client, maiso
     assert client.post("/api/window/minimize").json()["ok"]
     assert client.post("/api/window/close").json()["ok"]
     assert appels == ["réduite", "fermée"]
+    monkeypatch.setattr(main, "afficher_fenetre", lambda: appels.append("affichée"))
+    assert client.post("/api/window/show").json()["ok"]
+    assert appels[-1] == "affichée"
 
     client.post("/api/apps/demo/stop")
     assert main.pilote.apps_ouvertes() == []

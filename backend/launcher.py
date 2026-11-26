@@ -44,6 +44,24 @@ def _deja_lance(port: int) -> bool:
         return False
 
 
+def _ramener_la_fenetre(port: int) -> bool:
+    """Demande au Studio Dock qui tourne de remettre sa fenêtre au premier plan. False s'il n'en a pas."""
+    if os.name == "nt":
+        try:
+            # Ce lancement vient d'un clic de l'utilisateur : il cède le premier plan à l'autre processus
+            import ctypes
+
+            ctypes.windll.user32.AllowSetForegroundWindow(-1)  # ASFW_ANY
+        except (AttributeError, OSError):
+            pass
+    requete = urllib.request.Request(f"http://{HOTE}:{port}/api/window/show", data=b"", method="POST")
+    try:
+        with urllib.request.urlopen(requete, timeout=5) as r:
+            return bool(json.loads(r.read()).get("ok"))
+    except (OSError, ValueError):  # 409 (pas de fenêtre), ancienne version sans cette route, délai dépassé
+        return False
+
+
 def _port_libre(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex((HOTE, port)) != 0
@@ -93,8 +111,10 @@ def main(argv: list[str] | None = None) -> None:
         threading.Thread(target=_vider_ancien_dossier, args=(Path(args.cleanup),), daemon=True).start()
 
     if _deja_lance(args.port) and not args.no_window:
-        # Un seul Studio Dock à la fois : on rouvre l'interface de celui qui tourne
-        winapi.ouvrir(f"http://{HOTE}:{args.port}")
+        # Un seul Studio Dock à la fois : sa fenêtre revient au premier plan (même réduite) ; le navigateur
+        # ne s'ouvre que si celui qui tourne n'a pas de fenêtre (lancé avec --browser, ou repli)
+        if args.browser or not _ramener_la_fenetre(args.port):
+            winapi.ouvrir(f"http://{HOTE}:{args.port}")
         return
     port = _port_disponible(args.port)
     url = f"http://{HOTE}:{port}"
@@ -135,6 +155,10 @@ def main(argv: list[str] | None = None) -> None:
             pilote.tout_arreter()
         return
 
+    import app.main as module_api
+
+    # Relancé pendant que la fenêtre s'ouvre (double-clic) : rien à faire, elle arrive, pas de navigateur
+    module_api.afficher_fenetre = lambda: None
     fil = threading.Thread(target=serveur.run, daemon=True)
     fil.start()
     for _ in range(100):
@@ -148,9 +172,21 @@ def main(argv: list[str] | None = None) -> None:
         choix = window.create_file_dialog(dossier)
         return str(choix[0]) if choix else None
 
-    import app.main as module_api
+    def _afficher() -> None:
+        # Réduite ou cachée derrière d'autres fenêtres : elle revient devant
+        for etape in (window.restore, window.show):
+            try:
+                etape()
+            except Exception:  # noqa: BLE001 : méthode absente de cette version de pywebview
+                pass
+        try:
+            window.on_top = True
+            window.on_top = False
+        except Exception:  # noqa: BLE001
+            pass
 
     module_api.choisir_dossier = _choisir_dossier
+    module_api.afficher_fenetre = _afficher
 
     # Fermer la fenêtre arrête les apps web lancées : s'il y en a, l'interface demande d'abord
     # (réduire Studio Dock ou tout fermer). Sans réponse de l'interface, la fenêtre se ferme comme avant.
