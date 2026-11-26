@@ -4,6 +4,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+## [0.8.2] — 2026-11-26
+
+### Corrigé
+
+- Le tutoriel d'accueil s'affiche bien à la première installation, même quand l'équipe impose des apps : Studio
+  Dock les installait d'office dès qu'il voyait le dossier de l'équipe, et le tutoriel, réservé aux postes sans app,
+  n'apparaissait jamais. Seules les apps choisies par la personne, ou une connexion d'IA déjà enregistrée, indiquent
+  désormais un poste déjà en service.
+
 ## [0.8.1] — 2026-11-26
 
 ### Corrigé

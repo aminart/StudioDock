@@ -117,3 +117,28 @@ def test_nouvelle_version_de_studio_dock(client, maison, tmp_path):
     (partage / "StudioDock" / "StudioDock-9.0.0.py").write_text("")
     dock = client.get("/api/apps").json()["dock"]
     assert dock == {"update": "9.0.0", "canUpdate": False, "waiting": False}
+
+
+def test_tutoriel_malgre_les_apps_imposees(client, maison, tmp_path):
+    """Première installation chez un membre : les apps imposées s'installent d'office, le tutoriel s'affiche quand même."""
+    partage = _partage(tmp_path)
+    client.put("/api/settings", json={"shared_folder": str(partage)})
+    apps = _attendre(client, lambda a: a["demo"]["installed"])
+    assert apps["demo"]["installed"]
+    assert client.get("/api/apps").json()["welcome"] is True
+
+    # Une app choisie par la personne : le poste est déjà en service
+    client.post("/api/apps/bis/install")
+    _attendre(client, lambda a: a["bis"]["installed"])
+    assert client.get("/api/apps").json()["welcome"] is False
+
+
+def test_pas_de_tutoriel_si_l_ia_est_deja_reglee(client, maison, tmp_path):
+    """Poste déjà en service avant cette version (connexion d'IA enregistrée) : pas de tutoriel surprise."""
+    from app import ia
+
+    partage = _partage(tmp_path)
+    client.put("/api/settings", json={"shared_folder": str(partage)})
+    assert client.get("/api/apps").json()["welcome"] is True
+    ia.enregistrer(ia.nouvelle("Passerelle", "https://ia.exemple/v1", ["qwen"], None), "cle")
+    assert client.get("/api/apps").json()["welcome"] is False
