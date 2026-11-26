@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from app import winapi
+from app import journal, winapi
 from app.catalogue import AppEntry
 from app.info import home_dir
 from app.pilote import Pilote
@@ -107,6 +107,7 @@ class Installeur:
                 apres()
         except OSError as e:
             suivi.erreur = f"Copie depuis {origine} impossible : {e}"
+            journal.noter(f"Installation de {app.name} : {suivi.erreur}")
         finally:
             suivi.fini = True
 

@@ -165,6 +165,12 @@ export const App: React.FC = () => {
   const prepareRoute = route === '#/catalogue';
   const iaRoute = route === '#/ia';
   const welcomeRoute = route === '#/bienvenue';
+  // Tutoriel commencé : il reste affiché jusqu'à ce qu'on le quitte, même si une app s'installe entre-temps
+  // (les apps imposées à l'équipe, ou celles cochées à la fin)
+  const [welcomeOpen, setWelcomeOpen] = React.useState(false);
+  const showWelcome = !!state && (welcomeRoute
+    || ((welcomeOpen || state.welcome) && !appId && !settingsRoute && !prepareRoute && !iaRoute));
+  React.useEffect(() => { if (showWelcome && !state?.needsInstall) setWelcomeOpen(true); }, [showWelcome, state?.needsInstall]);
   const tourRoute = route === '#/visite';
   const team = !!state && state.source !== 'local';
   const current = appId ? state?.apps.find((a) => a.id === appId) : undefined;
@@ -228,9 +234,9 @@ export const App: React.FC = () => {
         )}
         {state?.needsInstall && !settingsRoute ? (
           <InstallScreen onRestart={setMoving} restartingIn={moving} />
-        ) : state && (welcomeRoute || (state.welcome && !appId && !settingsRoute && !prepareRoute && !iaRoute)) ? (
+        ) : state && showWelcome ? (
           <Welcome state={state} openHome={() => run(null, () => api.openFolder('home'))}
-            onDone={(next) => { refresh(); window.location.hash = next ?? '#/'; }} />
+            onDone={(next) => { setWelcomeOpen(false); refresh(); window.location.hash = next ?? '#/'; }} />
         ) : iaRoute ? (
           <AiPage />
         ) : prepareRoute ? (

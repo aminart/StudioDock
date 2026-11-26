@@ -142,3 +142,14 @@ def test_pas_de_tutoriel_si_l_ia_est_deja_reglee(client, maison, tmp_path):
     assert client.get("/api/apps").json()["welcome"] is True
     ia.enregistrer(ia.nouvelle("Passerelle", "https://ia.exemple/v1", ["qwen"], None), "cle")
     assert client.get("/api/apps").json()["welcome"] is False
+
+
+def test_installation_refusee_notee_dans_le_journal(client, maison, tmp_path):
+    """Un refus d'installation (fin du tutoriel, carte) est noté dans studiodock.log pour « Signaler un problème »."""
+    partage = _partage(tmp_path)
+    client.put("/api/settings", json={"shared_folder": str(partage)})
+    (partage / "Projet B" / "Bis-2.0.0.py").unlink()
+    reponse = client.post("/api/apps/bis/install")
+    assert reponse.status_code == 409
+    journal = (maison / "logs" / "studiodock.log").read_text(encoding="utf-8")
+    assert "Installation de Bis impossible : Aucune version de Bis dans le dossier partagé." in journal

@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app import ia, installation, miseajour, modeles, reglages, routes_edition, routes_ia, telechargements, winapi
+from app import ia, installation, journal, miseajour, modeles, reglages, routes_edition, routes_ia, telechargements, winapi
 from app.catalogue import AppEntry, Catalogue, Source, fichier_icone, partage_accessible
 from app.info import (APP_ID, APP_NAME, EMPAQUETE, PLATEFORME, REPO_DIR, VERSION, dossier_installation_choisi, exe_dir,
                       home_dir, logs_dir, resources_dir)
@@ -264,6 +264,7 @@ async def installer(app_id: str):
     """Installe ou met à jour l'app depuis le dossier partagé (copie en arrière-plan, progression dans la liste)."""
     entree = _app_ou_404(app_id)
     if installation.a_installer():
+        journal.noter(f"Installation de {entree.name} refusée : Studio Dock n'est pas encore dans son dossier.")
         return JSONResponse(status_code=409, content={
             "detail": "Installez d'abord Studio Dock dans votre dossier (Réglages).", "code": "not_installed"})
     if source.origine == "online":
@@ -277,9 +278,12 @@ async def installer(app_id: str):
     try:
         await asyncio.to_thread(installeur.installer, entree, _partage_lisible())
     except FileNotFoundError as e:
+        journal.noter(f"Installation de {entree.name} impossible : {e}")
         return JSONResponse(status_code=409, content={"detail": str(e), "code": "unavailable"})
     except ErreurAction as e:
+        journal.noter(f"Installation de {entree.name} impossible : {e}")
         return _erreur(e)
+    journal.noter(f"Installation de {entree.name} lancée.")
     return await _apres(entree)
 
 

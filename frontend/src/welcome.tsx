@@ -40,6 +40,9 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
   const [aiState, setAiState] = React.useState<AiState | null>(null);
   const [chosen, setChosen] = React.useState<Set<string>>(new Set());
   const [chosenInit, setChosenInit] = React.useState(false);
+  // Apps dont l'installation a été refusée à la fin du tutoriel : affichées, au lieu d'être ignorées
+  const [failed, setFailed] = React.useState<{ name: string; message: string }[]>([]);
+  const [started, setStarted] = React.useState<DockApp[]>([]);
   const titre = React.useRef<HTMLHeadingElement>(null);
 
   React.useEffect(() => {
@@ -69,16 +72,32 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
 
   const finish = async (next?: string, installer = false) => {
     setClosing(true);
-    try { await api.welcomeDone(true); } catch { /* le tutoriel reviendra au prochain lancement */ }
-    if (installer) {
+    if (installer && !failed.length) {
+      // Avant de marquer le tutoriel vu : un refus reste affiché ici, sur « C'est prêt ».
       // Une à une : en ligne, chacune ouvre sa page de téléchargement
+      const refus: { name: string; message: string }[] = [];
+      const lancees: DockApp[] = [];
       for (const app of installables.filter((a) => chosen.has(a.id))) {
-        try { await api.install(app.id); if (app.isNew) await api.seen([app.id]); } catch { /* signalé sur sa carte */ }
+        try {
+          await api.install(app.id);
+          lancees.push(app);
+          if (app.isNew) await api.seen([app.id]);
+        } catch (e) {
+          refus.push({ name: app.name, message: e instanceof Error ? e.message : 'Installation impossible.' });
+        }
+      }
+      if (refus.length) {
+        setFailed(refus);
+        setStarted(lancees);
+        setClosing(false);
+        return; // la personne lit le message, puis continue (les autres apps s'installent déjà)
       }
     }
+    try { await api.welcomeDone(true); } catch { /* le tutoriel reviendra au prochain lancement */ }
     onDone(next);
   };
-  const toInstall = installables.filter((a) => chosen.has(a.id));
+  // Après un refus, la liste se fige sur celles qui s'installent (installées, elles quittent « installables »)
+  const toInstall = failed.length ? started : installables.filter((a) => chosen.has(a.id));
 
   const body = () => {
     switch (steps[step]) {
@@ -221,6 +240,15 @@ export const Welcome: React.FC<{ state: DockState; onDone: (next?: string) => vo
                 : teamOk ? 'Les applications de l\'équipe vous attendent sur l\'accueil.'
                   : 'Les applications de l\'équipe apparaîtront sur l\'accueil dès que son dossier sera indiqué.'}
             </p>
+            {failed.length > 0 && (
+              <div role="alert" className="flex max-w-[520px] flex-col gap-1 rounded-md bg-danger-soft px-3.5 py-2.5 text-left text-[13px] text-danger-text">
+                <span className="font-medium">
+                  {failed.length > 1 ? 'Ces applications ne se sont pas installées :' : 'Cette application ne s\'est pas installée :'}
+                </span>
+                {failed.map((f) => <span key={f.name}>{f.name} : {f.message}</span>)}
+                <span>Vous pourrez réessayer depuis sa carte, sur l'accueil.</span>
+              </div>
+            )}
             <p className="m-0 flex max-w-[520px] items-center gap-2 rounded-md bg-surface-2 px-3.5 py-2.5 text-left text-[13px] text-ink-muted">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01" /><path d="M11 12h1v4h1" /></svg>
               Gardez Studio Dock ouvert ou réduit : les apps s'arrêtent avec lui.
