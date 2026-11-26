@@ -105,6 +105,8 @@ export interface PrepareState {
   studiodock: { source: string; found: string | null; version: string | null; link: string };
   /** Modèle de transcription de l'équipe, s'il est déclaré dans le catalogue. */
   transcription: { name: string; source: string; found: string | null; version: string | null; link: string } | null;
+  /** Modèle d'identification des intervenants de l'équipe, s'il est déclaré dans le catalogue. */
+  intervenants: { name: string; source: string; found: string | null; version: string | null; link: string } | null;
   link: string;
   published: string | null;
   zip?: string;
@@ -244,6 +246,7 @@ export interface CatalogueEdit {
   apps: CatalogueApp[];
   studiodock: { source: string };
   transcription: CatalogueTranscription | null;
+  intervenants: CatalogueTranscription | null;
   /** Le dossier édité est le dossier partagé de l'équipe : les changements y sont visibles tout de suite. */
   isShared: boolean;
   saved?: string;

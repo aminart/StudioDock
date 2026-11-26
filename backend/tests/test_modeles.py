@@ -18,7 +18,8 @@ CONTRAT = Path(__file__).resolve().parents[2] / "contrat" / "studiodock_ia.py"
 
 @pytest.fixture(autouse=True)
 def sans_installation_en_cours(monkeypatch):
-    monkeypatch.setattr(modeles, "_suivi", None)
+    for t in modeles.TYPES.values():
+        monkeypatch.setattr(t, "_suivi", None)
 
 
 def contrat():
@@ -204,3 +205,81 @@ def test_contrat_ignore_un_chemin_disparu(tmp_path, monkeypatch):
     assert contrat().transcription() is None
     (tmp_path / "transcription.json").write_text(json.dumps({"format": 9, "path": str(tmp_path)}))
     assert contrat().transcription() is None
+
+
+# --- Modèle d'identification des intervenants : même circuit -------------------------------------------------
+
+def _archive_pyannote(chemin: Path) -> Path:
+    with zipfile.ZipFile(chemin, "w") as z:
+        z.writestr("pyannote-community-1/config.yaml", "pipeline: {}\n")
+        z.writestr("pyannote-community-1/embedding/pytorch_model.bin", "x")
+        z.writestr("pyannote-community-1/segmentation/pytorch_model.bin", "x")
+    return chemin
+
+
+def _partage_intervenants(tmp_path, contenu=_archive_pyannote) -> Path:
+    partage = tmp_path / "partage"
+    (partage / "Modeles-intervenants").mkdir(parents=True)
+    contenu(partage / "Modeles-intervenants" / "pyannote-community-1-1.0.0.zip")
+    (partage / "catalogue.json").write_text(json.dumps({
+        "apps": [], "intervenants": {"name": "Pyannote (équipe)", "source": "Modeles-intervenants"}}), encoding="utf-8")
+    return partage
+
+
+def attendre_intervenants(client, condition, delai=15.0):
+    fin = time.monotonic() + delai
+    while time.monotonic() < fin:
+        client.get("/api/apps")
+        etat = client.get("/api/intervenants").json()
+        if condition(etat):
+            return etat
+        time.sleep(0.1)
+    raise AssertionError(f"délai dépassé : {etat}")
+
+
+def test_intervenants_installes_d_office_et_publies(client, maison, tmp_path, monkeypatch):
+    monkeypatch.setenv("STUDIODOCK_IA", str(maison / "ia"))
+    client.put("/api/settings", json={"shared_folder": str(_partage_intervenants(tmp_path))})
+    etat = attendre_intervenants(client, lambda e: e["installed"])
+    assert etat["name"] == "Pyannote (équipe)" and etat["version"] == "1.0.0" and etat["offered"]
+    assert (Path(etat["path"]) / "config.yaml").is_file() and Path(etat["path"]).is_relative_to(maison)
+    modele = contrat().intervenants()
+    assert modele is not None and modele.name == "Pyannote (équipe)" and Path(modele.path) == Path(etat["path"])
+    assert contrat().transcription() is None  # l'autre modèle n'est pas concerné
+    assert not client.get("/api/transcription").json()["offered"]
+
+
+def test_archive_sans_pipeline_refusee(client, maison, tmp_path, monkeypatch):
+    monkeypatch.setenv("STUDIODOCK_IA", str(maison / "ia"))
+
+    def mauvais(chemin):
+        with zipfile.ZipFile(chemin, "w") as z:
+            z.writestr("config.json", "{}")
+    client.put("/api/settings", json={"shared_folder": str(_partage_intervenants(tmp_path, mauvais))})
+    etat = attendre_intervenants(client, lambda e: e["error"])
+    assert "config.yaml introuvable" in etat["error"] and not etat["installed"]
+    assert contrat().intervenants() is None
+
+
+def test_declarer_et_publier_le_modele_intervenants(client, tmp_path):
+    dossier = tmp_path / "equipe"
+    dossier.mkdir()
+    client.post("/api/admin/catalogue/create", json={"folder": str(dossier)})
+    r = client.put("/api/admin/catalogue/intervenants",
+                   json={"folder": str(dossier), "intervenants": {"name": "Pyannote", "source": ""}}).json()
+    assert r["intervenants"]["name"] == "Pyannote" and r["intervenants"]["source"] == "Modeles-intervenants"
+    assert r["intervenants"]["sourceFound"] and r["transcription"] is None
+    _archive_pyannote(dossier / "Modeles-intervenants" / "pyannote-community-1-2.0.0.zip")
+    etat = client.post("/api/admin/catalogue", json={"folder": str(dossier)}).json()
+    assert etat["intervenants"]["found"] == "pyannote-community-1-2.0.0.zip" and "_chemin" not in etat["intervenants"]
+    client.post("/api/admin/catalogue/build", json={"folder": str(dossier), "intervenantsLink": "https://sp/Intervenants"})
+    modele = json.loads((dossier / "catalogue.json").read_text(encoding="utf-8"))["intervenants"]
+    assert modele["link"] == "https://sp/Intervenants" and modele["version"] == "2.0.0" and modele["file"] == "pyannote-community-1"
+    r = client.put("/api/admin/catalogue/intervenants", json={"folder": str(dossier), "intervenants": None}).json()
+    assert r["intervenants"] is None
+
+
+def test_contrat_intervenants_ignore_un_dossier_sans_config(tmp_path, monkeypatch):
+    monkeypatch.setenv("STUDIODOCK_IA", str(tmp_path))
+    (tmp_path / "intervenants.json").write_text(json.dumps({"format": 1, "name": "P", "path": str(tmp_path / "absent")}))
+    assert contrat().intervenants() is None

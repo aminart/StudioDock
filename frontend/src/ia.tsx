@@ -1,5 +1,5 @@
 import React from 'react';
-import { TranscriptionSection } from './transcription';
+import { IntervenantsSection, TranscriptionSection } from './transcription';
 import { ActionError, api, iaApi, toBase64 } from './api';
 import type { AiApp, AiChoice, AiConnection, AiState, ConnectionForm, ConnectionTest, OllamaState } from './types';
 import { IconAlert, IconBack, IconDownload, IconExternal, IconRefresh, IconSpinner, PlatformContext, SectionTitle, SettingsTabs, shortPath } from './ui';
@@ -602,6 +602,7 @@ export const AiPage: React.FC = () => {
       )}
 
       <TranscriptionSection n={4} />
+      <IntervenantsSection n={5} />
 
       {state && <p className="m-0 text-[13px] text-ink-subtle">Enregistré sur ce poste, dans <span className="font-mono" title={state.folder}>{shortPath(state.folder)}</span></p>}
     </div>

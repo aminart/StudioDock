@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActionError, api, catalogueApi } from './api';
 import { CatalogueApps } from './catalogue-editor';
-import { TranscriptionCatalogue } from './transcription';
+import { IntervenantsCatalogue, TranscriptionCatalogue } from './transcription';
 import type { CatalogueEdit, PrepareState } from './types';
 import { IconAlert, IconBack, IconFolder, IconSpinner, ScopeNote, SettingsTabs } from './ui';
 
@@ -16,6 +16,7 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
   const [dockLink, setDockLink] = React.useState('');
   const [catalogueLink, setCatalogueLink] = React.useState('');
   const [modelLink, setModelLink] = React.useState('');
+  const [speakersLink, setSpeakersLink] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [built, setBuilt] = React.useState<string | null>(null);
@@ -31,6 +32,7 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
     setDockLink(s.studiodock.link);
     setCatalogueLink(s.link);
     setModelLink(s.transcription?.link ?? '');
+    setSpeakersLink(s.intervenants?.link ?? '');
     if (s.link) setOnlineOpen(true);
   };
 
@@ -92,7 +94,7 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
     setBusy(true);
     setError(null);
     try {
-      const s = await api.build({ folder: state.folder, links, studiodockLink: dockLink, catalogueLink, transcriptionLink: modelLink });
+      const s = await api.build({ folder: state.folder, links, studiodockLink: dockLink, catalogueLink, transcriptionLink: modelLink, intervenantsLink: speakersLink });
       apply(s);
       setBuilt(s.zip ?? null);
     } catch (e) {
@@ -183,6 +185,7 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
           )}
           <CatalogueApps state={edit} onChanged={(e) => { setEdit(e); loadOnline(e.folder); }} />
           <TranscriptionCatalogue edit={edit} onChanged={(e) => { setEdit(e); loadOnline(e.folder); }} />
+          <IntervenantsCatalogue edit={edit} onChanged={(e) => { setEdit(e); loadOnline(e.folder); }} />
         </section>
       )}
 
@@ -269,6 +272,21 @@ export const PreparePage: React.FC<{ canChoose: boolean }> = ({ canChoose }) => 
                     <td className="py-3">
                       <label className="sr-only" htmlFor="lien-transcription">Lien du dossier du modèle de transcription</label>
                       <input id="lien-transcription" value={modelLink} onChange={(e) => setModelLink(e.target.value)} placeholder="https://…" className={`${input} w-full`} />
+                    </td>
+                  </tr>
+                )}
+                {state.intervenants && (
+                  <tr className="border-b border-line align-top">
+                    <td className="py-3 pr-3"><span className="font-medium text-ink">{state.intervenants.name}</span>
+                      <span className="block font-mono text-[12px] text-ink-subtle">{state.intervenants.source}/</span></td>
+                    <td className="py-3 pr-3">
+                      {state.intervenants.found
+                        ? <><span className="font-medium text-ink">{state.intervenants.version ?? '—'}</span><span className="block font-mono text-[12px] text-ink-subtle">{state.intervenants.found}</span></>
+                        : <span className="text-warning-text">aucune archive</span>}
+                    </td>
+                    <td className="py-3">
+                      <label className="sr-only" htmlFor="lien-intervenants">Lien du dossier du modèle d'identification des intervenants</label>
+                      <input id="lien-intervenants" value={speakersLink} onChange={(e) => setSpeakersLink(e.target.value)} placeholder="https://…" className={`${input} w-full`} />
                     </td>
                   </tr>
                 )}

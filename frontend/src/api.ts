@@ -42,7 +42,7 @@ export const api = {
   checkCatalogue: () => call<{ ok: boolean }>('POST', '/api/catalogue/check'),
   cancelCatalogue: () => call<{ ok: boolean }>('POST', '/api/catalogue/cancel'),
   prepare: (folder: string) => call<PrepareState>('POST', '/api/admin/catalogue', { folder }),
-  build: (body: { folder: string; links: Record<string, string>; studiodockLink: string; catalogueLink: string; transcriptionLink: string }) =>
+  build: (body: { folder: string; links: Record<string, string>; studiodockLink: string; catalogueLink: string; transcriptionLink: string; intervenantsLink: string }) =>
     call<PrepareState>('POST', '/api/admin/catalogue/build', body),
   showPrepare: (folder: string) => call<{ ok: boolean }>('POST', '/api/admin/catalogue/show', { folder }),
   installDock: (folder: string) => call<{ ok: boolean; restarting: boolean; folder: string; shortcut: boolean }>('PUT', '/api/settings/install', { folder }),
@@ -62,6 +62,8 @@ export const catalogueApi = {
     call<CatalogueEdit>('POST', '/api/admin/catalogue/apps/move', { folder, id, direction }),
   saveTranscription: (folder: string, transcription: Pick<CatalogueTranscription, 'name' | 'source'> | null) =>
     call<CatalogueEdit>('PUT', '/api/admin/catalogue/transcription', { folder, transcription }),
+  saveIntervenants: (folder: string, intervenants: Pick<CatalogueTranscription, 'name' | 'source'> | null) =>
+    call<CatalogueEdit>('PUT', '/api/admin/catalogue/intervenants', { folder, intervenants }),
   uploadIcon: (folder: string, id: string, name: string, data: string) =>
     call<{ file: string }>('POST', '/api/admin/catalogue/icon', { folder, id, name, data }),
 };
@@ -84,11 +86,14 @@ export const iaApi = {
 };
 
 /** Modèle de transcription de l'équipe, installé sur ce poste par Studio Dock. */
-export const transcriptionApi = {
-  state: () => call<TranscriptionState>('GET', '/api/transcription'),
-  install: () => call<TranscriptionState>('POST', '/api/transcription/install'),
-  cancel: () => call<TranscriptionState>('POST', '/api/transcription/cancel-download'),
-};
+const modeleApi = (cle: 'transcription' | 'intervenants') => ({
+  state: () => call<TranscriptionState>('GET', `/api/${cle}`),
+  install: () => call<TranscriptionState>('POST', `/api/${cle}/install`),
+  cancel: () => call<TranscriptionState>('POST', `/api/${cle}/cancel-download`),
+});
+export const transcriptionApi = modeleApi('transcription');
+/** Modèle d'identification des intervenants de l'équipe (pyannote), installé de la même façon. */
+export const intervenantsApi = modeleApi('intervenants');
 
 /** Contenu d'un fichier en base64 (certificat). */
 export const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {

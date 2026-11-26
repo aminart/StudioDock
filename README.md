@@ -277,6 +277,16 @@ Réglages, sans nouvelle tentative tant que l'archive n'a pas changé).
 **Côté app** : `studiodock_ia.transcription()` donne `name`, `version` et `path` (dossier local du modèle), ou `None`.
 Studio Dock l'écrit dans `ia/transcription.json` (format 1).
 
+### Modèle d'identification des intervenants de l'équipe
+
+Même circuit pour le pipeline pyannote qui permet à Snappy Transcript de savoir qui parle :
+Réglages › Préparer pour l'équipe › **Modèle d'identification des intervenants** (sous-dossier par défaut
+`Modeles-intervenants`, section `intervenants` du catalogue), archive .zip du dossier qui contient `config.yaml`,
+`embedding/` et `segmentation/` (par exemple `pyannote-community-1-1.0.0.zip`). Installé dans `modeles\intervenants\`,
+signalé dans Réglages › Modèles d'IA › **Identification des intervenants**.
+
+**Côté app** : `studiodock_ia.intervenants()` (fichier `ia/intervenants.json`, format 1), ou `None`.
+
 ## Développement
 
 ```bash
