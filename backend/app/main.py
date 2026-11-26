@@ -169,20 +169,20 @@ def _recuperer_telechargements(catalogue: Catalogue) -> None:
 
 
 def _recuperer_modele(catalogue: Catalogue) -> None:
-    """Modèle de transcription demandé : son archive arrivée dans Téléchargements est vérifiée puis installée."""
-    conf = catalogue.transcription
-    if conf is None or not telech.en_attente(modeles.CLE):
-        return
-    prefixe = conf.file or "faster-whisper"
-    fichiers = telech.fichiers(prefixe, lambda f: f.suffix.lower() == ".zip")
-    if not fichiers:
-        return
-    archive = max(fichiers, key=lambda f: f.stat().st_mtime)
-    telech.annuler(modeles.CLE)
-    if probleme := telechargements.conforme(archive, conf.size, conf.sha256):
-        modeles.signaler(probleme)
-        return
-    modeles.installer(archive, conf.name, conf.version, lambda a=archive: telechargements.retirer(a), "Téléchargements")
+    """Modèle demandé (transcription, intervenants) : son archive arrivée dans Téléchargements est vérifiée puis installée."""
+    for t in modeles.TYPES.values():
+        conf = getattr(catalogue, t.cle)
+        if conf is None or not telech.en_attente(t.cle):
+            continue
+        fichiers = telech.fichiers(conf.file or t.prefixe_telechargement, lambda f: f.suffix.lower() == ".zip")
+        if not fichiers:
+            continue
+        archive = max(fichiers, key=lambda f: f.stat().st_mtime)
+        telech.annuler(t.cle)
+        if probleme := telechargements.conforme(archive, conf.size, conf.sha256):
+            t.signaler(probleme)
+            continue
+        t.installer(archive, conf.name, conf.version, lambda a=archive: telechargements.retirer(a), "Téléchargements")
 
 
 def _etat_en_ligne(catalogue: Catalogue) -> dict[str, Any]:
@@ -207,7 +207,8 @@ async def lister() -> dict[str, Any]:
     a_installer = installation.a_installer()
     if partage is not None and not a_installer:
         await asyncio.to_thread(installeur.installer_les_apps_imposees, apps, partage)
-        await asyncio.to_thread(modeles.installer_si_besoin, catalogue.transcription, partage)
+        for t in modeles.TYPES.values():
+            await asyncio.to_thread(t.installer_si_besoin, getattr(catalogue, t.cle), partage)
     etats = await pilote.etats(apps)
     if source.origine == "shared" and "seen" not in reglages.lire():
         # Premier catalogue d'équipe vu sur ce poste : rien n'est « nouveau », seules les apps ajoutées ensuite le seront
@@ -267,40 +268,66 @@ async def installer(app_id: str):
     return await _apres(entree)
 
 
-@app.get("/api/transcription")
-async def etat_transcription() -> dict[str, Any]:
-    """Modèle de transcription de l'équipe : proposé par le catalogue ? installé sur ce poste ? (Réglages › Modèles d'IA)"""
+async def _etat_modele(cle: str) -> dict[str, Any]:
+    t = modeles.TYPES[cle]
     catalogue = source.lire()
     await asyncio.to_thread(_recuperer_modele, catalogue)
-    return await asyncio.to_thread(modeles.etat, catalogue.transcription, _partage_lisible(), source.origine,
-                                   telech.en_attente(modeles.CLE))
+    return await asyncio.to_thread(t.etat, getattr(catalogue, cle), _partage_lisible(), source.origine, telech.en_attente(cle))
 
 
-@app.post("/api/transcription/install")
-async def installer_transcription() -> dict[str, Any]:
+async def _installer_modele(cle: str) -> dict[str, Any]:
     """Installe le modèle maintenant (dossier partagé), ou ouvre son lien de téléchargement (catalogue en ligne)."""
+    t = modeles.TYPES[cle]
     catalogue = source.lire()
-    conf = catalogue.transcription
+    conf = getattr(catalogue, cle)
     if conf is None:
-        raise HTTPException(409, "Le catalogue de l'équipe ne propose pas de modèle de transcription.")
+        raise HTTPException(409, f"Le catalogue de l'équipe ne propose pas ce modèle ({t.nom_par_defaut.lower()}).")
     if source.origine == "online":
         if not conf.link:
-            raise HTTPException(409, "Le catalogue n'indique pas où télécharger le modèle de transcription.")
-        telech.attendre(modeles.CLE)
+            raise HTTPException(409, f"Le catalogue n'indique pas où télécharger ce modèle ({conf.name}).")
+        telech.attendre(cle)
         winapi.ouvrir(conf.link)
     else:
         archive = await asyncio.to_thread(modeles.dans_partage, conf, _partage_lisible())
         if archive is None:
             raise HTTPException(409, f"Aucune archive .zip dans le sous-dossier « {conf.source} » du dossier partagé.")
-        modeles.oublier_erreur()
-        modeles.installer(archive, conf.name, modeles.version_de(archive))
-    return await etat_transcription()
+        t.oublier_erreur()
+        t.installer(archive, conf.name, modeles.version_de(archive))
+    return await _etat_modele(cle)
+
+
+@app.get("/api/transcription")
+async def etat_transcription() -> dict[str, Any]:
+    """Modèle de transcription de l'équipe : proposé par le catalogue ? installé sur ce poste ? (Réglages › Modèles d'IA)"""
+    return await _etat_modele("transcription")
+
+
+@app.post("/api/transcription/install")
+async def installer_transcription() -> dict[str, Any]:
+    return await _installer_modele("transcription")
 
 
 @app.post("/api/transcription/cancel-download")
 async def annuler_transcription() -> dict[str, Any]:
-    telech.annuler(modeles.CLE)
-    return await etat_transcription()
+    telech.annuler("transcription")
+    return await _etat_modele("transcription")
+
+
+@app.get("/api/intervenants")
+async def etat_intervenants() -> dict[str, Any]:
+    """Modèle d'identification des intervenants (pyannote) de l'équipe : même fonctionnement que la transcription."""
+    return await _etat_modele("intervenants")
+
+
+@app.post("/api/intervenants/install")
+async def installer_intervenants() -> dict[str, Any]:
+    return await _installer_modele("intervenants")
+
+
+@app.post("/api/intervenants/cancel-download")
+async def annuler_intervenants() -> dict[str, Any]:
+    telech.annuler("intervenants")
+    return await _etat_modele("intervenants")
 
 
 @app.post("/api/apps/{app_id}/cancel-download")
@@ -338,6 +365,7 @@ class Fabrication(BaseModel):
     studiodockLink: str = ""
     catalogueLink: str = ""
     transcriptionLink: str = ""
+    intervenantsLink: str = ""
 
 
 def _dossier_preparation(brut: str) -> Path:
@@ -351,7 +379,8 @@ def _public(etat: dict) -> dict:
     """Sans les chemins internes (clés « _ »)."""
     nettoyer = lambda d: {k: v for k, v in d.items() if not k.startswith("_")}  # noqa: E731
     return {**etat, "apps": [nettoyer(a) for a in etat["apps"]], "studiodock": nettoyer(etat["studiodock"]),
-            "transcription": nettoyer(etat["transcription"]) if etat.get("transcription") else None}
+            "transcription": nettoyer(etat["transcription"]) if etat.get("transcription") else None,
+            "intervenants": nettoyer(etat["intervenants"]) if etat.get("intervenants") else None}
 
 
 @app.post("/api/admin/catalogue")
@@ -372,7 +401,7 @@ async def fabriquer_catalogue(corps: Fabrication):
     dossier = _dossier_preparation(corps.folder)
     try:
         archive = await asyncio.to_thread(telechargements.fabriquer, dossier, corps.links, corps.studiodockLink,
-                                          corps.catalogueLink, corps.transcriptionLink)
+                                          corps.catalogueLink, corps.transcriptionLink, corps.intervenantsLink)
         etat = await asyncio.to_thread(telechargements.preparer, dossier)
     except (OSError, ValueError) as e:
         raise HTTPException(409, f"Fabrication impossible : {e}") from e

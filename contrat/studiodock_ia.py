@@ -9,6 +9,8 @@ Studio Dock enregistre ses connexions dans le dossier « ia » (format 1) :
     certificats/<id>.crt
     transcription.json {"format": 1, "name", "version", "path"}   modèle de transcription de l'équipe (faster-whisper),
                                                                     installé par Studio Dock depuis le dossier partagé
+    intervenants.json  {"format": 1, "name", "version", "path"}   modèle d'identification des intervenants (pyannote),
+                                                                    installé de la même façon
 Emplacement : variable STUDIODOCK_IA (donnée par Studio Dock aux apps qu'il lance), sinon
 %LOCALAPPDATA%\\StudioDock\\ia (Windows), ~/Library/Application Support/StudioDock/ia (Mac),
 ~/.config/studiodock/ia (Linux).
@@ -20,6 +22,7 @@ Usage :
     choix = studiodock_ia.pour_app("specgen")   # Connexion et modèle choisis pour cette app, ou None
     toutes = studiodock_ia.connexions()          # Toutes les connexions (pour une app à plusieurs modèles)
     modele = studiodock_ia.transcription()       # Modèle de transcription de l'équipe (dossier local), ou None
+    pipeline = studiodock_ia.intervenants()      # Modèle d'identification des intervenants de l'équipe, ou None
 """
 from __future__ import annotations
 
@@ -163,7 +166,7 @@ def garde_sa_configuration(app_id: str) -> bool:
     return isinstance(apps, dict) and isinstance(apps.get(app_id), dict) and bool(apps[app_id].get("own"))
 
 
-# --- Modèle de transcription ------------------------------------------------------------------------------
+# --- Modèles de l'équipe (transcription, intervenants) ------------------------------------------------------------------------------
 
 @dataclass(frozen=True)
 class ModeleLocal:
@@ -172,18 +175,27 @@ class ModeleLocal:
     path: str  # dossier du modèle sur ce poste (config.json, model.bin…)
 
 
-def transcription() -> ModeleLocal | None:
-    """Modèle de transcription (faster-whisper) installé par Studio Dock pour l'équipe, ou None.
-
-    None aussi si le dossier indiqué n'existe plus (Studio Dock le republie à son prochain lancement)."""
+def _modele_local(fichier: str, temoin: str, nom_par_defaut: str) -> ModeleLocal | None:
+    """Modèle publié par Studio Dock dans le dossier « ia » ; None si absent, illisible ou si son dossier a disparu
+    (Studio Dock le republie à son prochain lancement)."""
     try:
-        donnees = json.loads((dossier() / "transcription.json").read_text(encoding="utf-8"))
+        donnees = json.loads((dossier() / fichier).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
     if not isinstance(donnees, dict) or int(donnees.get("format") or 0) > FORMAT:
         return None
     chemin = Path(str(donnees.get("path") or ""))
-    if not str(donnees.get("path") or "").strip() or not (chemin / "model.bin").is_file():
+    if not str(donnees.get("path") or "").strip() or not (chemin / temoin).is_file():
         return None
     version = donnees.get("version")
-    return ModeleLocal(str(donnees.get("name") or "Modèle de transcription"), str(version) if version else None, str(chemin))
+    return ModeleLocal(str(donnees.get("name") or nom_par_defaut), str(version) if version else None, str(chemin))
+
+
+def transcription() -> ModeleLocal | None:
+    """Modèle de transcription (faster-whisper) installé par Studio Dock pour l'équipe, ou None."""
+    return _modele_local("transcription.json", "model.bin", "Modèle de transcription")
+
+
+def intervenants() -> ModeleLocal | None:
+    """Modèle d'identification des intervenants (pipeline pyannote, avec config.yaml) installé par Studio Dock, ou None."""
+    return _modele_local("intervenants.json", "config.yaml", "Identification des intervenants")

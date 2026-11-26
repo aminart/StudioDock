@@ -17,7 +17,7 @@ import unicodedata
 from pathlib import Path
 from typing import Any
 
-from app.catalogue import CATALOGUE_PARTAGE, AppEntry, Catalogue, Transcription, _message
+from app.catalogue import CATALOGUE_PARTAGE, AppEntry, Catalogue, Intervenants, Transcription, _message
 from app.info import resources_dir
 
 ICONES = "icons"
@@ -65,7 +65,7 @@ def etat(dossier: Path) -> dict[str, Any]:
     """Apps du catalogue telles qu'elles s'éditent, ou exists=False s'il n'y a pas encore de catalogue.json."""
     if not _fichier(dossier).is_file():
         return {"folder": str(dossier), "exists": False, "apps": [], "studiodock": {"source": "StudioDock"},
-                "transcription": None}
+                "transcription": None, "intervenants": None}
     donnees = _lire_brut(dossier)
     apps = []
     for brut in donnees["apps"]:
@@ -81,16 +81,21 @@ def etat(dossier: Path) -> dict[str, Any]:
         apps.append(app)
     return {"folder": str(dossier), "exists": True, "apps": apps,
             "studiodock": {"source": (donnees.get("studiodock") or {}).get("source", "StudioDock")},
-            "transcription": _etat_transcription(dossier, donnees.get("transcription"))}
+            "transcription": _etat_modele(dossier, donnees.get("transcription"), Transcription),
+            "intervenants": _etat_modele(dossier, donnees.get("intervenants"), Intervenants)}
 
 
-def _etat_transcription(dossier: Path, brut: Any) -> dict[str, Any] | None:
+MODELES = {"transcription": (Transcription, "Modèle de transcription", "Modeles"),
+           "intervenants": (Intervenants, "Identification des intervenants", "Modeles-intervenants")}
+
+
+def _etat_modele(dossier: Path, brut: Any, classe: type) -> dict[str, Any] | None:
     if not isinstance(brut, dict):
         return None
     from app import modeles
 
     try:
-        conf = Transcription.model_validate(brut)
+        conf = classe.model_validate(brut)
     except Exception as e:  # noqa: BLE001
         return {"name": brut.get("name", "?"), "source": brut.get("source", "?"), "invalid": _message(e)}
     archive = modeles.dans_partage(conf, dossier)
@@ -98,25 +103,34 @@ def _etat_transcription(dossier: Path, brut: Any) -> dict[str, Any] | None:
             "found": archive.name if archive else None, "version": modeles.version_de(archive) if archive else None}
 
 
-def enregistrer_transcription(dossier: Path, valeurs: dict[str, Any] | None) -> dict[str, Any]:
-    """Déclare (ou retire, valeurs None) le modèle de transcription de l'équipe ; crée son sous-dossier."""
+def enregistrer_modele(dossier: Path, cle: str, valeurs: dict[str, Any] | None) -> dict[str, Any]:
+    """Déclare (ou retire, valeurs None) un modèle de l'équipe (transcription, intervenants) ; crée son sous-dossier."""
+    _, nom_defaut, source_defaut = MODELES[cle]
     with _VERROU:
         donnees = _lire_brut(dossier)
         if valeurs is None:
-            donnees.pop("transcription", None)
+            donnees.pop(cle, None)
         else:
-            nom = str(valeurs.get("name") or "").strip() or "Modèle de transcription"
-            sous_dossier = str(valeurs.get("source") or "").strip().strip("/\\") or "Modeles"
+            nom = str(valeurs.get("name") or "").strip() or nom_defaut
+            sous_dossier = str(valeurs.get("source") or "").strip().strip("/\\") or source_defaut
             if ".." in Path(sous_dossier).parts or Path(sous_dossier).is_absolute():
                 raise ErreurEdition("Le sous-dossier doit être dans le dossier du catalogue.")
-            ancien = donnees.get("transcription") if isinstance(donnees.get("transcription"), dict) else {}
+            ancien = donnees.get(cle) if isinstance(donnees.get(cle), dict) else {}
             # Les champs du catalogue en ligne (version, lien, taille, empreinte) sont conservés
-            donnees["transcription"] = {**{k: v for k, v in ancien.items() if k in (*CHAMPS_EN_LIGNE, "file")},
-                                        "name": nom, "source": sous_dossier}
+            donnees[cle] = {**{k: v for k, v in ancien.items() if k in (*CHAMPS_EN_LIGNE, "file")},
+                            "name": nom, "source": sous_dossier}
         _ecrire(dossier, donnees)
         if valeurs is not None:
-            (dossier / donnees["transcription"]["source"]).mkdir(parents=True, exist_ok=True)
+            (dossier / donnees[cle]["source"]).mkdir(parents=True, exist_ok=True)
     return etat(dossier)
+
+
+def enregistrer_transcription(dossier: Path, valeurs: dict[str, Any] | None) -> dict[str, Any]:
+    return enregistrer_modele(dossier, "transcription", valeurs)
+
+
+def enregistrer_intervenants(dossier: Path, valeurs: dict[str, Any] | None) -> dict[str, Any]:
+    return enregistrer_modele(dossier, "intervenants", valeurs)
 
 
 def creer(dossier: Path) -> dict[str, Any]:

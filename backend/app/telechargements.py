@@ -290,15 +290,17 @@ def preparer(dossier: Path) -> dict:
                      "size": trouvee.chemin.stat().st_size if trouvee else None,
                      "_chemin": str(trouvee.chemin) if trouvee else None,
                      "link": app.link or "", "icon": icone})
-    transcription = None
-    if (conf := catalogue.transcription) is not None:
-        from app import modeles
+    modeles_trouves: dict[str, dict | None] = {}
+    for cle in ("transcription", "intervenants"):
+        modeles_trouves[cle] = None
+        if (conf := getattr(catalogue, cle)) is not None:
+            from app import modeles
 
-        archive = modeles.dans_partage(conf, dossier)
-        transcription = {"name": conf.name, "source": conf.source, "found": archive.name if archive else None,
-                         "version": (modeles.version_de(archive) or conf.version) if archive else conf.version,
-                         "size": archive.stat().st_size if archive else None,
-                         "_chemin": str(archive) if archive else None, "link": conf.link or ""}
+            archive = modeles.dans_partage(conf, dossier)
+            modeles_trouves[cle] = {"name": conf.name, "source": conf.source, "found": archive.name if archive else None,
+                                    "version": (modeles.version_de(archive) or conf.version) if archive else conf.version,
+                                    "size": archive.stat().st_size if archive else None,
+                                    "_chemin": str(archive) if archive else None, "link": conf.link or ""}
     dock = dossier / catalogue.studiodock.source
     fichiers = [f for f in dock.iterdir() if _commence_par(nom_de_base(f), "StudioDock") and _est_programme(f)] \
         if dock.is_dir() else []
@@ -310,14 +312,15 @@ def preparer(dossier: Path) -> dict:
                        "size": trouvee.chemin.stat().st_size if trouvee else None,
                        "_chemin": str(trouvee.chemin) if trouvee else None,
                        "link": catalogue.studiodock.link or ""},
-        "transcription": transcription,
+        "transcription": modeles_trouves["transcription"],
+        "intervenants": modeles_trouves["intervenants"],
         "link": catalogue.link or "",
         "published": catalogue.published,
     }
 
 
 def fabriquer(dossier: Path, liens: dict[str, str], lien_dock: str, lien_catalogue: str,
-              lien_transcription: str = "") -> Path:
+              lien_transcription: str = "", lien_intervenants: str = "") -> Path:
     """Écrit les versions et les liens dans catalogue.json, puis fabrique studio-dock-catalogue.zip à côté."""
     etat = preparer(dossier)
     donnees = json.loads((dossier / CATALOGUE_PARTAGE).read_text(encoding="utf-8"))
@@ -343,13 +346,14 @@ def fabriquer(dossier: Path, liens: dict[str, str], lien_dock: str, lien_catalog
     _publier(dock, etat["studiodock"])
     if lien_dock.strip():
         dock["link"] = lien_dock.strip()
-    if (info := etat.get("transcription")) and isinstance(donnees.get("transcription"), dict):
-        modele = donnees["transcription"]
-        _publier(modele, info)
-        if info.get("found"):  # repéré dans Téléchargements par le début de son nom, sans la version
-            modele["file"] = re.sub(r"[-_ ]?v?\d+(\.\d+)+$", "", Path(info["found"]).stem) or Path(info["found"]).stem
-        if lien_transcription.strip():
-            modele["link"] = lien_transcription.strip()
+    for cle, lien in (("transcription", lien_transcription), ("intervenants", lien_intervenants)):
+        if (info := etat.get(cle)) and isinstance(donnees.get(cle), dict):
+            modele = donnees[cle]
+            _publier(modele, info)
+            if info.get("found"):  # repéré dans Téléchargements par le début de son nom, sans la version
+                modele["file"] = re.sub(r"[-_ ]?v?\d+(\.\d+)+$", "", Path(info["found"]).stem) or Path(info["found"]).stem
+            if lien.strip():
+                modele["link"] = lien.strip()
     if lien_catalogue.strip():
         donnees["link"] = lien_catalogue.strip()
     donnees["published"] = time.strftime("%Y-%m-%d %H:%M")
