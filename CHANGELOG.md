@@ -4,12 +4,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+## [0.8.0] — 2026-11-26
+
 ### Ajouté
 
 - Modèle de transcription de l'équipe : déclaré dans Préparer pour l'équipe (section `transcription` du catalogue),
   déposé en .zip dans le dossier partagé, installé d'office chez chacun (ou téléchargé par le navigateur avec un
   catalogue en ligne, puis vérifié). Visible dans Réglages › Modèles d'IA › Transcription audio. Les apps le lisent
   avec `studiodock_ia.transcription()` (contrat mis à jour) : Snappy Transcript n'a plus de chemin à régler.
+- Modèle d'identification des intervenants de l'équipe (pipeline pyannote, pour savoir qui parle), distribué de la
+  même façon : section `intervenants` du catalogue, archive .zip contenant `config.yaml`, `embedding/` et
+  `segmentation/`, installée dans `modeles\intervenants\`. Visible dans Réglages › Modèles d'IA › Identification des
+  intervenants. Les apps le lisent avec `studiodock_ia.intervenants()`.
 
 ## [0.7.0] — 2026-11-24
 
