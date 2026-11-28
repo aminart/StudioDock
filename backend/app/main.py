@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app import ia, installation, journal, miseajour, modeles, reglages, routes_edition, routes_ia, telechargements, winapi
+from app import ia, installation, securite, journal, miseajour, modeles, reglages, routes_edition, routes_ia, telechargements, winapi
 from app.catalogue import AppEntry, Catalogue, Source, fichier_icone, partage_accessible
 from app.info import (APP_ID, APP_NAME, EMPAQUETE, PLATEFORME, REPO_DIR, VERSION, dossier_installation_choisi, exe_dir,
                       home_dir, logs_dir, resources_dir)
@@ -22,6 +22,7 @@ from app.pilote import ErreurAction, Pilote
 from app.recherche import Trouvee, plus_recente, trouver_dans_partage
 
 app = FastAPI(title=APP_NAME, version=VERSION, docs_url=None, redoc_url=None, openapi_url=None)
+securite.proteger(app, APP_NAME)  # API locale : refuse les autres sites et le DNS rebinding (voir securite.py)
 source = Source()
 pilote = Pilote()
 installeur = Installeur(pilote)

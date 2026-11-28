@@ -4,6 +4,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; numéros : [
 
 ## [Non publié]
 
+### Sécurité
+
+- L'API locale refuse les commandes envoyées par un autre site ouvert dans le navigateur : une page piégée pouvait
+  changer de catalogue, installer et lancer un programme, modifier les réglages. Seule l'interface de Studio Dock
+  (et le lanceur, sans navigateur) peut encore le faire.
+- Nom d'hôte limité à 127.0.0.1 / localhost (« DNS rebinding » : un site pouvait lire les réponses de l'API).
+- En-têtes : pas d'affichage de Studio Dock dans une page tierce, pas de lecture de ses fichiers depuis un autre site.
+
 ## [0.8.2] — 2026-11-26
 
 ### Corrigé

@@ -57,7 +57,7 @@ def client(maison, monkeypatch):
     # Pas de navigateur ni d'Explorateur pendant les tests
     ouverts = []
     monkeypatch.setattr(main.winapi, "ouvrir", ouverts.append)
-    with TestClient(main.app) as c:
+    with TestClient(main.app, base_url="http://127.0.0.1") as c:
         c.ouverts = ouverts
         yield c
     pilote.tout_arreter()
